@@ -87,9 +87,9 @@ public struct KVsnapWitness {
             Algorithm("KVsnap") {
                 let store: SharedVariable<Function<Key, Value>> = SharedVar(initial: FormalCall("InitialState"))
                 let tx = SharedVar(initial: SetExpr<Transaction>())
-                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>.mapping { _ in Expr(SetExpr<Key>()) })
+                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>())
                 Each(Transaction.all, fairness: .weak) { selfID in
-                    let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar(initial: FormalCall<Function<Key, Value>>("InitialState"))
+                    let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar(initial: FormalCall("InitialState"))
                     let readKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
                     let writeKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
                     let ops: LocalVariable<TupleExpr<Record<OperationSchema>>> = LocalVar(initial: TupleExpr<Record<OperationSchema>>())
@@ -112,7 +112,7 @@ public struct KVsnapWitness {
                     }
                     Do(Step.update) {
                         Assign(snapshotStore, to: Function<Key, Value>.mapping { key in
-                            If(writeKeys.expr.contains(key), then: Value.first(selfID.expr), else: snapshotStore[key])
+                            If(writeKeys.expr.contains(key), then: Value.first(selfID.expr), else: snapshotStore[key.expr])
                         })
                     }
                     Do(Step.commit) {
@@ -120,10 +120,10 @@ public struct KVsnapWitness {
                             Let(tx.removing(selfID)) { committedTransactions in
                                 Assign(tx, to: committedTransactions.expr)
                                 Assign(missed, to: Function<Transaction, SetExpr<Key>>.mapping { other in
-                                    If(committedTransactions.expr.contains(other), then: missed[other].union(writeKeys.expr), else: missed[other])
+                                    If(committedTransactions.expr.contains(other), then: missed[other.expr].union(writeKeys.expr), else: missed[other.expr])
                                 })
                                 Assign(store, to: Function<Key, Value>.mapping { key in
-                                    If(writeKeys.expr.contains(key), then: snapshotStore[key], else: store[key])
+                                    If(writeKeys.expr.contains(key), then: snapshotStore[key.expr], else: store[key.expr])
                                 })
                                 let writes: Expr<SetExpr<Record<OperationSchema>>> = writeKeys.expr.mapping { key in
                                     let write: Expr<Record<OperationSchema>> = ModuleCall("CC", "w", key.expr, Value.first(selfID.expr))
