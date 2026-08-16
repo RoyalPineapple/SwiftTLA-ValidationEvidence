@@ -4,9 +4,9 @@ input, output = ARGV
 abort "Usage: #{$PROGRAM_NAME} <graph.dot> <canonical-graph.json>" unless input && output && ARGV.length == 2
 states, initial, edges = {}, [], []
 def canonical_state_label(label)
-  bindings = label.split("\\n/\\ ").each_with_index.map do |conjunct, index|
-    conjunct = "/\\ #{conjunct}" unless index.zero?
-    match = conjunct.match(/\A\/\\\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\z/)
+  bindings = label.split("\\n/\\\\ ").each_with_index.map do |conjunct, index|
+    conjunct = "/\\\\ #{conjunct}" unless index.zero?
+    match = conjunct.match(/\A\/\\\\\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\z/)
     return label unless match
     [match[1], conjunct]
   end
