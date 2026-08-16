@@ -1,13 +1,26 @@
 {
-  "schema": "SwiftTLAExternalValidationV2",
-  "target": { "repository": "https://github.com/RoyalPineapple/SwiftTLA.git" },
-  "admissionCases": [
-    { "id": "K1", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K2", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K3", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K4", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K5", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K6", "kind": "fixture", "fixtureID": null, "commit": null },
-    { "id": "K7", "kind": "suite", "fixtureID": null, "commit": null }
-  ]
+  "schema": "SwiftTLAExternalValidationV3",
+  "target": {
+    "repository": "https://github.com/RoyalPineapple/SwiftTLA.git",
+    "admissionRef": "main"
+  },
+  "requiredCases": [
+    { "id": "scope-binding-substitution", "fixtureID": "scope-binding-substitution" },
+    { "id": "formal-operator-values", "fixtureID": "formal-operator-values" },
+    { "id": "simultaneous-assignment", "fixtureID": "simultaneous-assignment" },
+    { "id": "structured-record-functions", "fixtureID": "structured-record-functions" },
+    { "id": "procedure-call-return", "fixtureID": "procedure-call-return" },
+    { "id": "boulanger-upstream-port", "fixtureID": "boulanger-upstream-port" }
+  ],
+  "suite": {
+    "id": "pluscal-differential-audit",
+    "requiresFixtureIDs": [
+      "scope-binding-substitution",
+      "formal-operator-values",
+      "simultaneous-assignment",
+      "structured-record-functions",
+      "procedure-call-return",
+      "boulanger-upstream-port"
+    ]
+  }
 }
