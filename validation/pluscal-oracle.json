@@ -1,12 +1,13 @@
 {
-  "schema": "SwiftTLAExternalValidationV1",
+  "schema": "SwiftTLAExternalValidationV2",
   "target": { "repository": "https://github.com/RoyalPineapple/SwiftTLA.git" },
   "admissionCases": [
-    { "id": "K1", "fixtureID": null, "commit": null },
-    { "id": "K2", "fixtureID": null, "commit": null },
-    { "id": "K3", "fixtureID": null, "commit": null },
-    { "id": "K4", "fixtureID": null, "commit": null },
-    { "id": "K5", "fixtureID": null, "commit": null },
-    { "id": "K6", "fixtureID": null, "commit": null }
+    { "id": "K1", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K2", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K3", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K4", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K5", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K6", "kind": "fixture", "fixtureID": null, "commit": null },
+    { "id": "K7", "kind": "suite", "fixtureID": null, "commit": null }
   ]
 }
