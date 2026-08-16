@@ -85,6 +85,11 @@ public enum OracleFixtureRegistry {
         swiftConfiguration: "SPECIFICATION Spec\nCONSTRAINT StateConstraint\n",
         specification: { K6BoulangerWitness.spec }
     )
+    public static let kvsnapUpstreamPort = OracleFixture(
+        id: "kvsnap-upstream-port",
+        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\n",
+        specification: { KVsnapWitness.spec }
+    )
 
     public static let fixtures = [
         scopeBindingSubstitution,
@@ -92,7 +97,8 @@ public enum OracleFixtureRegistry {
         simultaneousAssignment,
         structuredRecordFunctions,
         procedureCallReturn,
-        boulangerUpstreamPort
+        boulangerUpstreamPort,
+        kvsnapUpstreamPort
     ]
 
     public static func fixture(id: String) -> OracleFixture? {

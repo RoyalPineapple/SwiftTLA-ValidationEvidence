@@ -25,20 +25,29 @@ guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: argu
 let output = URL(fileURLWithPath: arguments[2])
 do {
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
-    let direct = fixture.specification().tlaModule
+    let bundle = fixture.specification().tlaBundle
+    let direct = bundle.root.tla
     let swiftConfiguration = fixture.swiftConfiguration
     let plusCalConfiguration = fixture.plusCalConfiguration
     let plusCal = try fixture.plusCalModule()
+    let imports = output.appendingPathComponent("imports")
+    try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: false)
     try Data(direct.utf8).write(to: output.appendingPathComponent("swift-lowered.tla"), options: .atomic)
     try Data(swiftConfiguration.utf8).write(to: output.appendingPathComponent("swift.cfg"), options: .atomic)
     try Data(plusCal.utf8).write(to: output.appendingPathComponent("pluscal-source.tla"), options: .atomic)
     try Data(plusCalConfiguration.utf8).write(to: output.appendingPathComponent("pluscal.cfg"), options: .atomic)
+    for importedModule in bundle.imports {
+        let filename = "\(importedModule.name).tla"
+        try Data(importedModule.tla.utf8).write(to: imports.appendingPathComponent(filename), options: .atomic)
+    }
     let metadata = Metadata(fixtureID: fixture.id, swiftTLACommit: arguments[3], inputSHA256: [
         "swift-lowered.tla": digest(direct),
         "swift.cfg": digest(swiftConfiguration),
         "pluscal-source.tla": digest(plusCal),
         "pluscal.cfg": digest(plusCalConfiguration)
-    ])
+    ].merging(Dictionary(uniqueKeysWithValues: bundle.imports.map {
+        ("imports/\($0.name).tla", digest($0.tla))
+    })) { _, replacement in replacement })
     try JSONEncoder().encode(metadata).write(to: output.appendingPathComponent("metadata.json"), options: .atomic)
 } catch {
     fputs("fixture export failed: \(error)\n", stderr)

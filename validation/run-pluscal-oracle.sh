@@ -54,8 +54,10 @@ suite_ids="$(jq -r '.suite.requiresFixtureIDs[]' "$contract")"
 if ! diff -u <(printf '%s\n' "$required_ids" | sed '/^$/d' | sort) <(printf '%s\n' "$suite_ids" | sed '/^$/d' | sort) >/dev/null; then
   fail "Differential suite contract differs from required fixtures" "$contract" "the suite to require exactly the named fixture contract" "required and suite fixture lists differ" "No run started" "Repair the stable admission contract."
 fi
-if [ "$(printf '%s\n' "$required_ids" | sed '/^$/d' | sort -u | wc -l | tr -d ' ')" -ne 6 ]; then
-  fail "Invalid required fixture contract" "$contract" "six unique fixture IDs" "duplicate or missing fixture IDs" "No run started" "Repair the stable admission contract."
+required_count="$(printf '%s\n' "$required_ids" | sed '/^$/d' | wc -l | tr -d ' ')"
+unique_required_count="$(printf '%s\n' "$required_ids" | sed '/^$/d' | sort -u | wc -l | tr -d ' ')"
+if [ "$required_count" -eq 0 ] || [ "$unique_required_count" -ne "$required_count" ]; then
+  fail "Invalid required fixture contract" "$contract" "non-empty, unique required fixture IDs" "missing or duplicate fixture IDs" "No run started" "Repair the stable admission contract."
 fi
 case "$mode" in candidate|admission) ;; *) fail "Invalid evidence mode" "runner arguments" "candidate or admission" "$mode" "No run started" "Use a supported evidence mode." ;; esac
 if [ "$mode" = admission ] && [ "$requested_ref" != main ]; then
@@ -129,7 +131,9 @@ jar_digest="$(shasum -a 256 "$jar" | awk '{print $1}')"
 jq -n --arg jarSHA256 "$jar_digest" --arg javaVersion "$(java -version 2>&1 | head -1)" '{tla2tools:{version:"1.8.0",artifact:"tla2tools.jar",sha256:$jarSHA256},javaVersion:$javaVersion,translator:"pcal.trans",modelChecker:"tlc2.TLC"}' > "$output/toolchain.json"
 module_name() { awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"; }
 prepare_module() { local source="$1" destination="$2" name; name="$(module_name "$source")"; [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."; cp "$source" "$destination/$name.tla"; printf '%s\n' "$name"; }
+copy_imports() { local source="$1/imports" destination="$2"; [ -d "$source" ] || return 0; find "$source" -maxdepth 1 -type f -name '*.tla' -exec cp {} "$destination" \;; }
 pluscal_module="$(prepare_module "$output/input/pluscal-source.tla" "$output/translated")"
+copy_imports "$output/input" "$output/translated"
 cp "$output/input/pluscal.cfg" "$output/translated/pluscal.cfg"
 jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg swiftTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir swift/states -dump dot,actionlabels swift/graph.dot -config swift/swift.cfg swift/<module>.tla" --arg pluscalTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir pluscal/states -dump dot,actionlabels pluscal/graph.dot -config pluscal/pluscal.cfg pluscal/<module>.tla" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:{swift:$swiftTLC,pluscal:$pluscalTLC},timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
 if run_bounded "$pluscal_translation_timeout_seconds" "$output/translation.stdout" "$output/translation.stderr" java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla"; then
@@ -144,10 +148,12 @@ fi
 for kind in swift pluscal; do
   if [ "$kind" = swift ]; then
     module_name="$(prepare_module "$output/input/swift-lowered.tla" "$output/$kind-tlc")"
+    copy_imports "$output/input" "$output/$kind-tlc"
     config_name="swift.cfg"
   else
     module_name="$pluscal_module"
     cp "$output/translated/$module_name.tla" "$output/$kind-tlc/$module_name.tla"
+    copy_imports "$output/input" "$output/$kind-tlc"
     config_name="pluscal.cfg"
   fi
   cp "$output/input/$config_name" "$output/$kind-tlc/$config_name"

@@ -10,7 +10,8 @@
     { "id": "simultaneous-assignment", "fixtureID": "simultaneous-assignment" },
     { "id": "structured-record-functions", "fixtureID": "structured-record-functions" },
     { "id": "procedure-call-return", "fixtureID": "procedure-call-return" },
-    { "id": "boulanger-upstream-port", "fixtureID": "boulanger-upstream-port" }
+    { "id": "boulanger-upstream-port", "fixtureID": "boulanger-upstream-port" },
+    { "id": "kvsnap-upstream-port", "fixtureID": "kvsnap-upstream-port" }
   ],
   "suite": {
     "id": "pluscal-differential-audit",
@@ -20,7 +21,8 @@
       "simultaneous-assignment",
       "structured-record-functions",
       "procedure-call-return",
-      "boulanger-upstream-port"
+      "boulanger-upstream-port",
+      "kvsnap-upstream-port"
     ]
   }
 }
