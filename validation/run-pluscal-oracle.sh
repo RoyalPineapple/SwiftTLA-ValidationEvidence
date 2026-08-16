@@ -118,7 +118,7 @@ else
   fi
   fail "Fixture export failed" "fixture $case_id / fixture export" "a renderable registered fixture" "fixture export exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "Fixture export output was retained; no TLC run started; no admission claim was made." "Repair the fixture boundary, then dispatch one fresh hosted candidate run."
 fi
-jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg config "$(shasum -a 256 "$output/input/model.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,cfgSHA256:$config,plusCalSourceSHA256:$pluscal}' > "$output/case.json"
+jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal}' > "$output/case.json"
 jq -n --arg id "$case_id" --arg commit "$commit" '{runner:{caseID:$id,engine:"pluscal-oracle",runID:$commit},swift:{caseID:$id,engine:"swift",runID:$commit},tlc:{caseID:$id,engine:"tlc",runID:$commit}}' > "$output/correlations.json"
 printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":false,"swiftTLC":false,"pluscalTLC":false}\n' > "$output/raw-artifacts.json"
 mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
@@ -130,8 +130,8 @@ jq -n --arg jarSHA256 "$jar_digest" --arg javaVersion "$(java -version 2>&1 | he
 module_name() { awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"; }
 prepare_module() { local source="$1" destination="$2" name; name="$(module_name "$source")"; [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."; cp "$source" "$destination/$name.tla"; printf '%s\n' "$name"; }
 pluscal_module="$(prepare_module "$output/input/pluscal-source.tla" "$output/translated")"
-cp "$output/input/model.cfg" "$output/translated/model.cfg"
-jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg tlc "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir <kind>/states -dump dot,actionlabels <kind>/graph.dot -config <kind>/model.cfg <kind>/<module>.tla" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:$tlc,timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
+cp "$output/input/pluscal.cfg" "$output/translated/pluscal.cfg"
+jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg swiftTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir swift/states -dump dot,actionlabels swift/graph.dot -config swift/swift.cfg swift/<module>.tla" --arg pluscalTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir pluscal/states -dump dot,actionlabels pluscal/graph.dot -config pluscal/pluscal.cfg pluscal/<module>.tla" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:{swift:$swiftTLC,pluscal:$pluscalTLC},timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
 if run_bounded "$pluscal_translation_timeout_seconds" "$output/translation.stdout" "$output/translation.stderr" java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla"; then
   :
 else
@@ -142,9 +142,16 @@ else
   fail "PlusCal translation failed" "fixture $case_id / PlusCal translation" "pcal.trans to translate the rendered PlusCal module" "translator exited $status; inspect $output/translation.stdout and $output/translation.stderr" "Translator output and inputs were retained; no admission claim was made." "Inspect the rendered source and translator output, then dispatch one fresh hosted candidate run."
 fi
 for kind in swift pluscal; do
-  if [ "$kind" = swift ]; then module_name="$(prepare_module "$output/input/swift-lowered.tla" "$output/$kind-tlc")"; else module_name="$pluscal_module"; cp "$output/translated/$module_name.tla" "$output/$kind-tlc/$module_name.tla"; fi
-  cp "$output/input/model.cfg" "$output/$kind-tlc/model.cfg"
-  module="$output/$kind-tlc/$module_name.tla"; config="$output/$kind-tlc/model.cfg"
+  if [ "$kind" = swift ]; then
+    module_name="$(prepare_module "$output/input/swift-lowered.tla" "$output/$kind-tlc")"
+    config_name="swift.cfg"
+  else
+    module_name="$pluscal_module"
+    cp "$output/translated/$module_name.tla" "$output/$kind-tlc/$module_name.tla"
+    config_name="pluscal.cfg"
+  fi
+  cp "$output/input/$config_name" "$output/$kind-tlc/$config_name"
+  module="$output/$kind-tlc/$module_name.tla"; config="$output/$kind-tlc/$config_name"
   case "$kind" in
     swift) tlc_label="Swift TLC graph exploration" ;;
     pluscal) tlc_label="PlusCal TLC graph exploration" ;;
