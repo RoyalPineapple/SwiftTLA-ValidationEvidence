@@ -17,14 +17,42 @@ fail() { mkdir -p "$output"; jq -n --arg whatFailed "$1" --arg whereItFailed "$2
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
 [ ! -e "$output" ] || fail "Evidence directory exists" "$output" "fresh directory" "already exists" "No run started" "Choose a fresh output directory."
 mkdir -p "$output"
-mapped="$(jq -r --arg commit "$commit" '[.admissionCases[] | select(.commit == $commit and .fixtureID != null)] | length' "$root/validation/pluscal-oracle.json")"
-if [ "$mode" = admission ] && [ "$mapped" -ne 6 ]; then
-  fail "External K1-K6 admission is not configured" "validation/pluscal-oracle.json" "six exact mappings" "$mapped mappings" "Candidate checkout retained; no admission claim" "Add six reviewed mappings for this SHA."
+mapped="$(jq -r --arg commit "$commit" '[.admissionCases[] | select(.commit == $commit and ((.kind == "fixture" and .fixtureID != null) or (.kind == "suite" and .id == "K7")))] | length' "$root/validation/pluscal-oracle.json")"
+if [ "$mode" = admission ] && [ "$mapped" -ne 7 ]; then
+  fail "External K1-K7 admission is not configured" "validation/pluscal-oracle.json" "six fixture mappings plus the K7 suite mapping" "$mapped mappings" "Candidate checkout retained; no admission claim" "Add seven reviewed mappings for this SHA."
 fi
 if [ "$case_id" = all ]; then
-  ids="$(swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list)"
+  if ! ids="$(swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list)"; then
+    k7="$output/K7"; mkdir "$k7"
+    jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg mode "$mode" \
+      '{schema:"SwiftTLAK7SuiteResultV1",id:"K7",requestedRef:$requestedRef,resolvedCommit:$commit,mode:$mode,fixtureResults:[],conformant:false}' > "$k7/result.json"
+    jq -n \
+      '{whatFailed:"K7 independent lowerer audit",whereItFailed:"pluscal-oracle-harness --list",expected:"the registered Algorithm fixture list",actual:"the fixture-export harness did not list fixtures",systemChange:"No fixture or TLC run started; no K7 admission claim was made.",nextSafeAction:"Repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$k7/diagnostic.json"
+    exit 2
+  fi
   printf '{"requestedRef":"%s","resolvedCommit":"%s","mode":"%s"}\n' "$requested_ref" "$commit" "$mode" > "$output/run.json"
   status=0; while IFS= read -r id; do [ -n "$id" ] || continue; "$0" --case "$id" --checkout "$checkout" --commit "$commit" --requested-ref "$requested_ref" --mode "$mode" --output "$output/$id" || status=$?; done <<< "$ids"
+  k7="$output/K7"; mkdir "$k7"
+  fixture_results="$({ while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    comparison="$output/$id/comparison.json"
+    diagnostic="$output/$id/diagnostic.json"
+    if [ -f "$comparison" ] && jq -e '.conformant == true' "$comparison" >/dev/null; then
+      jq -cn --arg id "$id" '{fixtureID:$id,status:"conformant",evidence:"comparison.json"}'
+    elif [ -f "$diagnostic" ]; then
+      jq -cn --arg id "$id" '{fixtureID:$id,status:"failed",evidence:"diagnostic.json"}'
+    else
+      jq -cn --arg id "$id" '{fixtureID:$id,status:"missing",evidence:null}'
+    fi
+  done <<< "$ids"; } | jq -s .)"
+  failed="$(jq '[.[] | select(.status != "conformant")] | length' <<< "$fixture_results")"
+  jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg mode "$mode" --argjson fixtures "$fixture_results" --argjson failed "$failed" \
+    '{schema:"SwiftTLAK7SuiteResultV1",id:"K7",requestedRef:$requestedRef,resolvedCommit:$commit,mode:$mode,fixtureResults:$fixtures,conformant:($failed == 0)}' > "$k7/result.json"
+  if [ "$failed" -ne 0 ]; then
+    jq -n --arg actual "$failed fixture result(s) were not conformant; inspect K7/result.json and the retained fixture evidence" \
+      '{whatFailed:"K7 independent lowerer audit",whereItFailed:"K7/result.json",expected:"every registered Algorithm fixture to have an exact Swift-lowered versus official-PlusCal/TLC graph comparison",actual:$actual,systemChange:"Per-fixture evidence was retained; no K7 admission claim was made.",nextSafeAction:"Repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."}' > "$k7/diagnostic.json"
+    [ "$status" -ne 0 ] || status=1
+  fi
   exit "$status"
 fi
 swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit" || fail "Fixture export failed" "$case_id" "renderable registered fixture" "harness failed" "No TLC run" "Repair the fixture boundary."
