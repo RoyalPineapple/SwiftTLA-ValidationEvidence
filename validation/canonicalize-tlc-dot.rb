@@ -3,10 +3,20 @@ require "json"
 input, output = ARGV
 abort "Usage: #{$PROGRAM_NAME} <graph.dot> <canonical-graph.json>" unless input && output && ARGV.length == 2
 states, initial, edges = {}, [], []
+def canonical_state_label(label)
+  bindings = label.split("\\n").map do |conjunct|
+    match = conjunct.match(/\A\/\\\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\z/)
+    return label unless match
+    [match[1], conjunct]
+  end
+  return label unless bindings.map(&:first).uniq.length == bindings.length
+  bindings.sort_by(&:first).map(&:last).join("\\n")
+end
+
 File.foreach(input) do |line|
   if (match = line.match(/^(-?\d+) \[label="((?:\\.|[^"])*)"/))
-    states[match[1]] = match[2]
-    initial << match[2] if line.include?("style = filled")
+    states[match[1]] = canonical_state_label(match[2])
+    initial << states[match[1]] if line.include?("style = filled")
   elsif (match = line.match(/^(-?\d+) -> (-?\d+) \[label="((?:\\.|[^"])*)",/))
     edges << match.captures
   end
