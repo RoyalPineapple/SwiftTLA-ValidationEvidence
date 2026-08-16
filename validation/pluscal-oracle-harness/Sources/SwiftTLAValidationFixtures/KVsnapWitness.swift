@@ -73,12 +73,17 @@ public struct KVsnapWitness {
         #spec("KVsnap") {
             Extends("Integers, Sequences, FiniteSets")
             Import(KeyValueStoreUtil.module)
-            let keys = SetExpr<Key>.literal(.k1, .k2)
-            let values = SetExpr<Value>.literal(.first(.t1), .first(.t2), .first(.t3), .second(.noVal))
             Instance("CC", of: ClientCentric.module, with: [
-                ModuleArgument("Keys", value: keys), ModuleArgument("Values", value: values),
+                ModuleArgument("Keys", value: SetExpr<Key>.literal(.k1, .k2)),
+                ModuleArgument("Values", value: SetExpr<Value>.literal(
+                    .first(.t1), .first(.t2), .first(.t3), .second(.noVal)
+                )),
             ])
-            FormalDefinition("InitialState", body: Function<Key, Value>.mapping { _ in .second(.noVal) }.raw)
+            FormalDefinition(
+                "InitialState",
+                parameters: [],
+                body: Function<Key, Value>.mapping { _ in .second(.noVal) }.raw
+            )
             FormalDefinition("SetToSeq", parameters: [.value("S")], body: .choose(
                 .functionSet(.integerRange(.int(1), .cardinality(.variable("S"))), .variable("S")), "f",
                 .operatorApplication(.reference("IsInjective", arity: 1), [.value(.variable("f"))])
@@ -95,15 +100,17 @@ public struct KVsnapWitness {
                     let ops: LocalVariable<TupleExpr<Record<OperationSchema>>> = LocalVar(initial: TupleExpr<Record<OperationSchema>>())
                     Do(Step.start) {
                         Assign(tx, to: tx.inserting(selfID)); Assign(snapshotStore, to: store)
-                        With(NonEmptySubsets(of: keys)) { reads in
-                            With(NonEmptySubsets(of: keys)) { writes in
+                        With(NonEmptySubsets(of: SetExpr<Key>.literal(.k1, .k2))) { reads in
+                            With(NonEmptySubsets(of: SetExpr<Key>.literal(.k1, .k2))) { writes in
                                 Assign(readKeys, to: reads.expr); Assign(writeKeys, to: writes.expr)
                             }
                         }
                     }
                     Do(Step.read) {
                         let reads = readKeys.expr.mapping { key in ModuleCall<Record<OperationSchema>>("CC", "r", key.expr, snapshotStore[key]) }
-                        Assign(ops, to: ops.expr.concatenating(FormalCall("SetToSeq", reads)))
+                        Assign(ops, to: ops.expr.concatenating(
+                            FormalCall<TupleExpr<Record<OperationSchema>>>("SetToSeq", reads)
+                        ))
                     }
                     Do(Step.update) {
                         Assign(snapshotStore, to: Function<Key, Value>.mapping { key in
@@ -121,18 +128,29 @@ public struct KVsnapWitness {
                                     If(writeKeys.expr.contains(key), then: snapshotStore[key], else: store[key])
                                 })
                                 let writes = writeKeys.expr.mapping { key in ModuleCall<Record<OperationSchema>>("CC", "w", key.expr, Value.first(selfID.expr)) }
-                                Assign(ops, to: ops.expr.concatenating(FormalCall("SetToSeq", writes)))
+                                Assign(ops, to: ops.expr.concatenating(
+                                    FormalCall<TupleExpr<Record<OperationSchema>>>("SetToSeq", writes)
+                                ))
                             }
                         }
                     }
                     Invariant("SnapshotIsolation") {
-                        ModuleCall<Bool>("CC", "SnapshotIsolation", FormalCall<Function<Key, Value>>("InitialState"), ops.family(for: Transaction.self).range).raw
+                        ModuleCall<Bool>(
+                            "CC", "SnapshotIsolation",
+                            FormalCall<Function<Key, Value>>("InitialState"),
+                            Range(ops.family(for: Transaction.self))
+                        ).raw
                     }
                 }
                 Invariant("TypeOK") {
-                    Functions(from: Key.all, to: values).contains(store.expr)
+                    Functions(from: Key.all, to: SetExpr<Value>.literal(
+                        .first(.t1), .first(.t2), .first(.t3), .second(.noVal)
+                    )).contains(store.expr)
                         && tx.isSubset(of: SetExpr<Transaction>.literal(.t1, .t2, .t3))
-                        && Functions(from: Transaction.all, to: Subsets(of: keys)).contains(missed.expr)
+                        && Functions(
+                            from: Transaction.all,
+                            to: Subsets(of: SetExpr<Key>.literal(.k1, .k2))
+                        ).contains(missed.expr)
                 }
                 Eventually("Termination", All(Transaction.all) { Finished($0) })
             }
