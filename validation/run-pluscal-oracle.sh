@@ -5,7 +5,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output=
 fixture_export_timeout_seconds=180
 pluscal_translation_timeout_seconds=30
-tlc_timeout_seconds=90
+tlc_timeout_seconds="${TLC_TIMEOUT_SECONDS:-90}"
 timeout_exit=124
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -43,6 +43,7 @@ timeout_failure() {
   fail "$operation timed out" "fixture $fixture / $operation" "the bounded fixture to finish within $limit_seconds seconds" "fixture $fixture exceeded the $limit_seconds-second limit; inspect $stdout and $stderr" "The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made." "Inspect the retained output, repair the named operation or fixture, then dispatch one fresh hosted candidate run."
 }
 [ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] || exit 2
+[[ "$tlc_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || fail "Invalid TLC timeout" "TLC_TIMEOUT_SECONDS" "a positive integer number of seconds" "$tlc_timeout_seconds" "No run started" "Set TLC_TIMEOUT_SECONDS to a positive integer."
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
 [ ! -e "$output" ] || fail "Evidence directory exists" "$output" "fresh directory" "already exists" "No run started" "Choose a fresh output directory."

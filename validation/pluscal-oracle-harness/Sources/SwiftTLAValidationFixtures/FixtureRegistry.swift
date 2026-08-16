@@ -90,6 +90,15 @@ public enum OracleFixtureRegistry {
         swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nSYMMETRY SymmTxId\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
         specification: { KVsnapWitness.spec }
     )
+    /// Candidate-only discriminator for the symmetry-reduction investigation.
+    /// It deliberately stays out of `fixtures`, which is the admission corpus.
+    public static let kvsnapNoSymmetryDiagnostic = OracleFixture(
+        id: "kvsnap-no-symmetry-diagnostic",
+        swiftConfiguration: kvsnapUpstreamPort.swiftConfiguration.replacingOccurrences(
+            of: "SYMMETRY SymmTxId\n", with: ""
+        ),
+        specification: { KVsnapWitness.spec }
+    )
 
     public static let fixtures = [
         scopeBindingSubstitution,
@@ -101,7 +110,9 @@ public enum OracleFixtureRegistry {
         kvsnapUpstreamPort
     ]
 
+    private static let diagnosticFixtures = [kvsnapNoSymmetryDiagnostic]
+
     public static func fixture(id: String) -> OracleFixture? {
-        fixtures.first { $0.id == id }
+        (fixtures + diagnosticFixtures).first { $0.id == id }
     }
 }
