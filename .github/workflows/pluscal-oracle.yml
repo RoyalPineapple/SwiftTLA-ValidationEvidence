@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       swifttla_ref:
-        description: SwiftTLA branch, tag, or immutable SHA
+        description: SwiftTLA branch, tag, or immutable SHA (admission accepts main only)
         required: true
         type: string
       admission_mode:
-        description: candidate retains evidence; admission requires complete reviewed mappings
+        description: candidate is pre-merge evidence; admission is post-merge main evidence
         required: true
         default: candidate
         type: choice
@@ -29,7 +29,7 @@ jobs:
           ref: ${{ inputs.swifttla_ref }}
           path: SwiftTLA
       - id: candidate
-        name: Resolve immutable SwiftTLA candidate
+        name: Resolve immutable SwiftTLA revision
         run: |
           commit="$(git -C SwiftTLA rev-parse HEAD)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
@@ -46,7 +46,9 @@ jobs:
             --case all --checkout "$GITHUB_WORKSPACE/SwiftTLA" \
             --commit "${{ steps.candidate.outputs.commit }}" \
             --requested-ref "${{ inputs.swifttla_ref }}" \
-            --mode "${{ inputs.admission_mode }}" --output "$EVIDENCE_ROOT"
+            --mode "${{ inputs.admission_mode }}" \
+            --validation-commit "${{ github.sha }}" \
+            --output "$EVIDENCE_ROOT"
       - name: Upload retained candidate evidence
         if: always()
         uses: actions/upload-artifact@v4
