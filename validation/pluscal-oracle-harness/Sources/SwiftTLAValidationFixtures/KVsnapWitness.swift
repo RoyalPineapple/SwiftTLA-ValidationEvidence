@@ -92,7 +92,7 @@ public struct KVsnapWitness {
             Algorithm("KVsnap") {
                 let store: SharedVariable<Function<Key, Value>> = SharedVar(initial: FormalCall("InitialState"))
                 let tx = SharedVar(initial: SetExpr<Transaction>())
-                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>.mapping { _ in SetExpr<Key>() })
+                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>.mapping { _ in Expr(SetExpr<Key>()) })
                 Each(Transaction.all, fairness: .weak) { selfID in
                     let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar(initial: FormalCall<Function<Key, Value>>("InitialState"))
                     let readKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
