@@ -1,4 +1,4 @@
-import AlgorithmConformance
+import SwiftTLAValidationFixtures
 import CryptoKit
 import Foundation
 
@@ -15,10 +15,10 @@ func digest(_ text: String) -> String {
 
 let arguments = CommandLine.arguments
 if arguments.count == 2, arguments[1] == "--list" {
-    print(AlgorithmConformanceRegistry.fixtures.map(\.id).joined(separator: "\n"))
+    print(OracleFixtureRegistry.fixtures.map(\.id).joined(separator: "\n"))
     exit(0)
 }
-guard arguments.count == 4, let fixture = AlgorithmConformanceRegistry.fixture(id: arguments[1]) else {
+guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: arguments[1]) else {
     fputs("Usage: pluscal-oracle-harness <fixture-id> <fresh-output-directory> <full-swifttla-sha>\n", stderr)
     exit(2)
 }

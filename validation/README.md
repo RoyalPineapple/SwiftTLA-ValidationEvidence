@@ -1,6 +1,6 @@
 # PlusCal validation evidence
 
-This repository owns the external PlusCal translator/TLC lifecycle. The workflow accepts a SwiftTLA branch, tag, or SHA, records the resolved immutable SHA, exports its public `AlgorithmConformance` fixtures, and retains per-fixture input, TLC, and canonical comparison evidence as a GitHub Actions artifact.
+This repository owns the external PlusCal translator/TLC lifecycle. The workflow accepts a SwiftTLA branch, tag, or SHA, records the resolved immutable SHA, exports its bounded validation fixtures through the harness, and retains per-fixture input, TLC, and canonical comparison evidence as a GitHub Actions artifact.
 
 Candidate mode is pre-merge evidence: it accepts a branch, tag, or SHA and never makes an admission claim. Admission is post-merge evidence: it accepts `main` only, resolves and retains that exact immutable SwiftTLA SHA, and fails closed unless the discovered fixtures are exactly the stable contract in `validation/pluscal-oracle.json`. No per-merge mapping edit is required.
 
