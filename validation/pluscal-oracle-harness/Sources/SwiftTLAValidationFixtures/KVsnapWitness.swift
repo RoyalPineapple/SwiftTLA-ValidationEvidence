@@ -102,7 +102,7 @@ public struct KVsnapWitness {
                         }
                     }
                     Do(Step.read) {
-                        let reads = readKeys.expr.mapping { key in
+                        let reads: Expr<SetExpr<Record<OperationSchema>>> = readKeys.expr.mapping { key in
                             ModuleCall("CC", "r", key.expr, snapshotStore[key.expr])
                         }
                         Assign(ops, to: ops.expr.concatenating(
@@ -124,7 +124,7 @@ public struct KVsnapWitness {
                                 Assign(store, to: Function<Key, Value>.mapping { key in
                                     If(writeKeys.expr.contains(key), then: snapshotStore[key.expr], else: store[key.expr])
                                 })
-                                let writes = writeKeys.expr.mapping { key in
+                                let writes: Expr<SetExpr<Record<OperationSchema>>> = writeKeys.expr.mapping { key in
                                     ModuleCall("CC", "w", key.expr, Value.first(selfID.expr))
                                 }
                                 Assign(ops, to: ops.expr.concatenating(
@@ -134,12 +134,11 @@ public struct KVsnapWitness {
                         }
                     }
                     Invariant("SnapshotIsolation") {
-                        let initial: Expr<Function<Key, Value>> = FormalCall("InitialState")
-                        let snapshotIsolation: Expr<Bool> = ModuleCall(
-                            "CC", "SnapshotIsolation", initial,
+                        ModuleCall<Bool>(
+                            "CC", "SnapshotIsolation",
+                            FormalCall<Function<Key, Value>>("InitialState"),
                             Range(ops.family(for: Transaction.self))
-                        )
-                        snapshotIsolation.raw
+                        ).raw
                     }
                 }
                 Invariant("TypeOK") {
