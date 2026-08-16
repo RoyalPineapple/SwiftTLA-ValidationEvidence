@@ -12,5 +12,5 @@ File.foreach(input) do |line|
   end
 end
 abort "No TLC states were found in #{input}" if states.empty?
-canonical = edges.map { |from, to, action| abort "Unknown TLC state" unless states[from] && states[to]; { "from" => states[from], "action" => action, "to" => states[to] } }.sort_by { |edge| [edge["from"], edge["action"], edge["to"]] }
-File.write(output, JSON.generate({ "schema" => "TLCActionLabelDOTGraphV1", "initialStates" => initial.sort, "states" => states.values.sort, "edges" => canonical }) + "\n")
+canonical = edges.map { |from, to, action| abort "Unknown TLC state" unless states[from] && states[to]; { "from" => states[from], "action" => action, "to" => states[to] } }.uniq.sort_by { |edge| [edge["from"], edge["action"], edge["to"]] }
+File.write(output, JSON.generate({ "schema" => "TLCActionLabelDOTGraphV2", "initialStates" => initial.sort, "states" => states.values.sort, "edgeCounts" => { "rawRecords" => edges.length, "uniqueRelations" => canonical.length }, "edges" => canonical }) + "\n")
