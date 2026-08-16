@@ -102,9 +102,8 @@ public struct KVsnapWitness {
                         }
                     }
                     Do(Step.read) {
-                        let reads: Expr<SetExpr<Record<OperationSchema>>> = readKeys.expr.mapping { key in
-                            let read: Expr<Record<OperationSchema>> = ModuleCall("CC", "r", key.expr, snapshotStore[key.expr])
-                            return read
+                        let reads = readKeys.expr.mapping { key in
+                            ModuleCall("CC", "r", key.expr, snapshotStore[key.expr])
                         }
                         Assign(ops, to: ops.expr.concatenating(
                             InjectiveSequence(from: reads)
@@ -125,9 +124,8 @@ public struct KVsnapWitness {
                                 Assign(store, to: Function<Key, Value>.mapping { key in
                                     If(writeKeys.expr.contains(key), then: snapshotStore[key.expr], else: store[key.expr])
                                 })
-                                let writes: Expr<SetExpr<Record<OperationSchema>>> = writeKeys.expr.mapping { key in
-                                    let write: Expr<Record<OperationSchema>> = ModuleCall("CC", "w", key.expr, Value.first(selfID.expr))
-                                    return write
+                                let writes = writeKeys.expr.mapping { key in
+                                    ModuleCall("CC", "w", key.expr, Value.first(selfID.expr))
                                 }
                                 Assign(ops, to: ops.expr.concatenating(
                                     InjectiveSequence(from: writes)
