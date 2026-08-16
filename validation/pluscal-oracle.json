@@ -1,0 +1,12 @@
+{
+  "schema": "SwiftTLAExternalValidationV1",
+  "target": { "repository": "https://github.com/RoyalPineapple/SwiftTLA.git" },
+  "admissionCases": [
+    { "id": "K1", "fixtureID": null, "commit": null },
+    { "id": "K2", "fixtureID": null, "commit": null },
+    { "id": "K3", "fixtureID": null, "commit": null },
+    { "id": "K4", "fixtureID": null, "commit": null },
+    { "id": "K5", "fixtureID": null, "commit": null },
+    { "id": "K6", "fixtureID": null, "commit": null }
+  ]
+}
