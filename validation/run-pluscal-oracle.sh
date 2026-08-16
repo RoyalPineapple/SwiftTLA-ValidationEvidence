@@ -39,10 +39,23 @@ mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
 jar="$root/.build/tla2tools.jar"; mkdir -p "$root/.build"
 if [ ! -f "$jar" ]; then curl -fsSL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o "$jar"; fi
 [ "$(shasum -a 256 "$jar" | awk '{print $1}')" = "ab323b79802aedc3203b3f9af37c6aca3ed43f4e0225b36f2aa77b26de46c05f" ] || fail "Pinned TLC jar digest differs" "$jar" "TLC v1.8.0 pinned digest" "untrusted jar" "No translator or TLC run" "Restore the pinned TLC artifact."
-cp "$output/input/pluscal-source.tla" "$output/translated/pluscal-source.tla"; cp "$output/input/model.cfg" "$output/translated/model.cfg"
-java -cp "$jar" pcal.trans -unixEOL "$output/translated/pluscal-source.tla" > "$output/translation.stdout" 2> "$output/translation.stderr" || fail "PlusCal translation failed" "$case_id" "pcal.trans success" "See translation.stderr" "Inputs retained" "Inspect the rendered source."
+module_name() {
+  awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"
+}
+prepare_module() {
+  local source="$1" destination="$2" name
+  name="$(module_name "$source")"
+  [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."
+  cp "$source" "$destination/$name.tla"
+  printf '%s\n' "$name"
+}
+pluscal_module="$(prepare_module "$output/input/pluscal-source.tla" "$output/translated")"
+cp "$output/input/model.cfg" "$output/translated/model.cfg"
+java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla" > "$output/translation.stdout" 2> "$output/translation.stderr" || fail "PlusCal translation failed" "$case_id" "pcal.trans success" "See translation.stderr" "Inputs retained" "Inspect the rendered source."
 for kind in swift pluscal; do
-  if [ "$kind" = swift ]; then module="$output/input/swift-lowered.tla"; config="$output/input/model.cfg"; else module="$output/translated/pluscal-source.tla"; config="$output/translated/model.cfg"; fi
+  if [ "$kind" = swift ]; then module_name="$(prepare_module "$output/input/swift-lowered.tla" "$output/$kind-tlc")"; else module_name="$pluscal_module"; cp "$output/translated/$module_name.tla" "$output/$kind-tlc/$module_name.tla"; fi
+  cp "$output/input/model.cfg" "$output/$kind-tlc/model.cfg"
+  module="$output/$kind-tlc/$module_name.tla"; config="$output/$kind-tlc/model.cfg"
   java -cp "$jar" tlc2.TLC -workers 1 -fp 1 -deadlock -metadir "$output/$kind-tlc/states" -dump dot,actionlabels "$output/$kind-tlc/graph.dot" -config "$config" "$module" > "$output/$kind-tlc/tlc-output.txt" 2>&1 || fail "TLC run failed" "$kind" "complete bounded TLC graph" "See TLC output" "Inputs retained" "Inspect TLC output."
   "$root/validation/canonicalize-tlc-dot.rb" "$output/$kind-tlc/graph.dot" "$output/$kind-tlc/canonical-graph.json"
 done
