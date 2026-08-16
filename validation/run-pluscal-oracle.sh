@@ -38,6 +38,7 @@ printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":false,"swif
 mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
 jar="$root/.build/tla2tools.jar"; mkdir -p "$root/.build"
 if [ ! -f "$jar" ]; then curl -fsSL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o "$jar"; fi
+[ "$(shasum -a 256 "$jar" | awk '{print $1}')" = "ab323b79802aedc3203b3f9af37c6aca3ed43f4e0225b36f2aa77b26de46c05f" ] || fail "Pinned TLC jar digest differs" "$jar" "TLC v1.8.0 pinned digest" "untrusted jar" "No translator or TLC run" "Restore the pinned TLC artifact."
 cp "$output/input/pluscal-source.tla" "$output/translated/pluscal-source.tla"; cp "$output/input/model.cfg" "$output/translated/model.cfg"
 java -cp "$jar" pcal.trans -unixEOL "$output/translated/pluscal-source.tla" > "$output/translation.stdout" 2> "$output/translation.stderr" || fail "PlusCal translation failed" "$case_id" "pcal.trans success" "See translation.stderr" "Inputs retained" "Inspect the rendered source."
 for kind in swift pluscal; do
