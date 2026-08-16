@@ -84,11 +84,6 @@ public struct KVsnapWitness {
                 parameters: [],
                 body: Function<Key, Value>.mapping { _ in Value.second(Expr<NoValue>(.noVal)) }.raw
             )
-            FormalDefinition("SetToSeq", parameters: [.value("S")], body: .choose(
-                .functionSet(.integerRange(.int(1), .cardinality(.variable("S"))), .variable("S")), "f",
-                .operatorApplication(.reference("IsInjective", arity: 1), [.value(.variable("f"))])
-            ))
-
             Algorithm("KVsnap") {
                 let store: SharedVariable<Function<Key, Value>> = SharedVar(initial: FormalCall("InitialState"))
                 let tx = SharedVar(initial: SetExpr<Transaction>())
@@ -107,9 +102,12 @@ public struct KVsnapWitness {
                         }
                     }
                     Do(Step.read) {
-                        let reads = readKeys.expr.mapping { key in ModuleCall<Record<OperationSchema>>("CC", "r", key.expr, snapshotStore[key]) }
+                        let reads: Expr<SetExpr<Record<OperationSchema>>> = readKeys.expr.mapping { key in
+                            let read: Expr<Record<OperationSchema>> = ModuleCall("CC", "r", key.expr, snapshotStore[key.expr])
+                            return read
+                        }
                         Assign(ops, to: ops.expr.concatenating(
-                            FormalCall<TupleExpr<Record<OperationSchema>>>("SetToSeq", reads)
+                            InjectiveSequence(from: reads)
                         ))
                     }
                     Do(Step.update) {
@@ -127,19 +125,23 @@ public struct KVsnapWitness {
                                 Assign(store, to: Function<Key, Value>.mapping { key in
                                     If(writeKeys.expr.contains(key), then: snapshotStore[key], else: store[key])
                                 })
-                                let writes = writeKeys.expr.mapping { key in ModuleCall<Record<OperationSchema>>("CC", "w", key.expr, Value.first(selfID.expr)) }
+                                let writes: Expr<SetExpr<Record<OperationSchema>>> = writeKeys.expr.mapping { key in
+                                    let write: Expr<Record<OperationSchema>> = ModuleCall("CC", "w", key.expr, Value.first(selfID.expr))
+                                    return write
+                                }
                                 Assign(ops, to: ops.expr.concatenating(
-                                    FormalCall<TupleExpr<Record<OperationSchema>>>("SetToSeq", writes)
+                                    InjectiveSequence(from: writes)
                                 ))
                             }
                         }
                     }
                     Invariant("SnapshotIsolation") {
-                        ModuleCall<Bool>(
-                            "CC", "SnapshotIsolation",
-                            FormalCall<Function<Key, Value>>("InitialState"),
+                        let initial: Expr<Function<Key, Value>> = FormalCall("InitialState")
+                        let snapshotIsolation: Expr<Bool> = ModuleCall(
+                            "CC", "SnapshotIsolation", initial,
                             Range(ops.family(for: Transaction.self))
-                        ).raw
+                        )
+                        snapshotIsolation.raw
                     }
                 }
                 Invariant("TypeOK") {
