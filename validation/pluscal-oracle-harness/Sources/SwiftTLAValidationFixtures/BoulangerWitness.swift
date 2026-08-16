@@ -3,7 +3,7 @@ import SwiftTLAMacros
 
 /// Bounded Boulangerie witness from Boulanger.tla and MCBoulanger.cfg.
 @TLAModel
-public struct K6BoulangerWitness {
+public struct BoulangerWitness {
     public enum Process: Int, FiniteDomainKey {
         case one = 1
         case two = 2

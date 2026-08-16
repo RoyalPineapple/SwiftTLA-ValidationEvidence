@@ -79,6 +79,7 @@ public struct KVsnapWitness {
             Constant("t2", Transaction.t2)
             Constant("t3", Transaction.t3)
             Constant("NoVal", NoValue.noVal)
+            Symmetry("TxId", Set(Transaction.all))
             Instance("CC", of: ClientCentric.module, with: [
                 ModuleArgument("Keys", value: SetExpr<Key>.literal(.k1, .k2)),
                 ModuleArgument("Values", value: SetExpr<Value>.literal(

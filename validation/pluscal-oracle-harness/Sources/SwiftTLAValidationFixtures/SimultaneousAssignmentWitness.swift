@@ -2,10 +2,10 @@ import SwiftTLA
 import SwiftTLAMacros
 
 @TLAModel
-public struct K3SimultaneousAssignmentWitness {
+public struct SimultaneousAssignmentWitness {
     public static var spec: TLASpec {
-        #spec("K3SimultaneousAssignmentWitness") {
-            Algorithm("K3SimultaneousAssignmentWitness") {
+        #spec("SimultaneousAssignmentWitness") {
+            Algorithm("SimultaneousAssignmentWitness") {
                 let left = SharedVar(initial: 1)
                 let right = SharedVar(initial: 2)
 

@@ -2,7 +2,7 @@ import SwiftTLA
 import SwiftTLAMacros
 
 @TLAModel
-public struct K4StructuredWitness {
+public struct StructuredRecordFunctionsWitness {
     public enum Car: String, CaseIterable, FiniteDomainKey {
         case left
         case right
@@ -31,8 +31,8 @@ public struct K4StructuredWitness {
     }
 
     public static var spec: TLASpec {
-        #spec("K4StructuredTLCWitness") {
-            Algorithm("K4StructuredTLCWitness") {
+        #spec("StructuredRecordFunctionsWitness") {
+            Algorithm("StructuredRecordFunctionsWitness") {
                 let doors = SharedVar(initial: Function<Car, Record<Door>>.literal(
                     (.left, Record<Door>.literal(.init(Door.open, false))),
                     (.right, Record<Door>.literal(.init(Door.open, false)))

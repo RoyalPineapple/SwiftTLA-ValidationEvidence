@@ -57,37 +57,37 @@ public enum OracleFixtureRegistry {
     public static let scopeBindingSubstitution = OracleFixture(
         id: "scope-binding-substitution",
         swiftConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\n",
-        specification: { K1ScopeBindingSubstitutionWitness.spec }
+        specification: { ScopeBindingSubstitutionWitness.spec }
     )
     public static let formalOperatorValues = OracleFixture(
         id: "formal-operator-values",
         swiftConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\n",
-        specification: { K2ScopedFormalLambdaWitness.spec }
+        specification: { FormalOperatorValuesWitness.spec }
     )
     public static let simultaneousAssignment = OracleFixture(
         id: "simultaneous-assignment",
         swiftConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\n",
-        specification: { K3SimultaneousAssignmentWitness.spec }
+        specification: { SimultaneousAssignmentWitness.spec }
     )
     public static let structuredRecordFunctions = OracleFixture(
         id: "structured-record-functions",
         swiftConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\n",
-        specification: { K4StructuredWitness.spec }
+        specification: { StructuredRecordFunctionsWitness.spec }
     )
     public static let procedureCallReturn = OracleFixture(
         id: "procedure-call-return",
         swiftConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\n",
         plusCalConfiguration: "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE\nCONSTANT defaultInitValue = 0\n",
-        specification: { K5ProcedureCallReturnWitness.spec }
+        specification: { ProcedureCallReturnWitness.spec }
     )
     public static let boulangerUpstreamPort = OracleFixture(
         id: "boulanger-upstream-port",
         swiftConfiguration: "SPECIFICATION Spec\nCONSTRAINT StateConstraint\n",
-        specification: { K6BoulangerWitness.spec }
+        specification: { BoulangerWitness.spec }
     )
     public static let kvsnapUpstreamPort = OracleFixture(
         id: "kvsnap-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
+        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nSYMMETRY SymmTxId\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
         specification: { KVsnapWitness.spec }
     )
 

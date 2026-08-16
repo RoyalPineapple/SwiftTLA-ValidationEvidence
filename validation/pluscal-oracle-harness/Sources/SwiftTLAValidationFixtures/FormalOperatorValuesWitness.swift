@@ -2,7 +2,7 @@ import SwiftTLA
 import SwiftTLAMacros
 
 @TLAModel
-public struct K2ScopedFormalLambdaWitness {
+public struct FormalOperatorValuesWitness {
     public enum Worker: String, CaseIterable, FiniteDomainKey {
         case left
         case right
@@ -14,8 +14,8 @@ public struct K2ScopedFormalLambdaWitness {
     }
 
     public static var spec: TLASpec {
-        #spec("K2ScopedFormalLambdaTLCWitness") {
-            Algorithm("K2ScopedFormalLambdaTLCWitness") {
+        #spec("FormalOperatorValuesWitness") {
+            Algorithm("FormalOperatorValuesWitness") {
                 let counters = SharedVar(initial: Function<Worker, Int>.literal(
                     (.left, 0),
                     (.right, 0)
