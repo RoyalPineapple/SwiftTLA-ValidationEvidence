@@ -87,7 +87,7 @@ public enum OracleFixtureRegistry {
     )
     public static let kvsnapUpstreamPort = OracleFixture(
         id: "kvsnap-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
+        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nSYMMETRY SymmTxId\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
         specification: { KVsnapWitness.spec }
     )
 
