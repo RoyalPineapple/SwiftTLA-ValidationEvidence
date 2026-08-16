@@ -1,0 +1,57 @@
+name: PlusCal candidate validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      swifttla_ref:
+        description: SwiftTLA branch, tag, or immutable SHA
+        required: true
+        type: string
+      admission_mode:
+        description: candidate retains evidence; admission requires complete reviewed mappings
+        required: true
+        default: candidate
+        type: choice
+        options: [candidate, admission]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: RoyalPineapple/SwiftTLA
+          ref: ${{ inputs.swifttla_ref }}
+          path: SwiftTLA
+      - id: candidate
+        name: Resolve immutable SwiftTLA candidate
+        run: |
+          commit="$(git -C SwiftTLA rev-parse HEAD)"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run PlusCal evidence suite
+        env:
+          EVIDENCE_ROOT: ${{ runner.temp }}/pluscal-oracle/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          ./validation/run-pluscal-oracle.sh \
+            --case all --checkout "$GITHUB_WORKSPACE/SwiftTLA" \
+            --commit "${{ steps.candidate.outputs.commit }}" \
+            --requested-ref "${{ inputs.swifttla_ref }}" \
+            --mode "${{ inputs.admission_mode }}" --output "$EVIDENCE_ROOT"
+      - name: Upload retained candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluscal-oracle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pluscal-oracle/
+          if-no-files-found: warn
+          retention-days: 30
