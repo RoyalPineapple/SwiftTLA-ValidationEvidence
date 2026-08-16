@@ -6,9 +6,16 @@ let package = Package(
     platforms: [.macOS(.v14)],
     dependencies: [.package(path: "../../SwiftTLA")],
     targets: [
+        .target(
+            name: "SwiftTLAValidationFixtures",
+            dependencies: [
+                .product(name: "SwiftTLA", package: "SwiftTLA"),
+                .product(name: "SwiftTLAMacros", package: "SwiftTLA")
+            ]
+        ),
         .executableTarget(
             name: "pluscal-oracle-harness",
-            dependencies: [.product(name: "AlgorithmConformance", package: "SwiftTLA")]
+            dependencies: ["SwiftTLAValidationFixtures"]
         )
     ]
 )
