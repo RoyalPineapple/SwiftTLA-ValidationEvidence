@@ -134,11 +134,11 @@ public struct KVsnapWitness {
                         }
                     }
                     Invariant("SnapshotIsolation") {
-                        ModuleCall<Bool>(
+                        ModuleCall(
                             "CC", "SnapshotIsolation",
-                            FormalCall<Function<Key, Value>>("InitialState"),
+                            FormalCall("InitialState"),
                             Range(ops.family(for: Transaction.self))
-                        ).raw
+                        )
                     }
                 }
                 Invariant("TypeOK") {
