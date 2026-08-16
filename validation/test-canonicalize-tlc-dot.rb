@@ -49,6 +49,16 @@ Dir.mktmpdir do |directory|
     1 [label="/\\ y = 4\\n/\\ x = 2"];
     0 -> 1 [label="advance",color="black"];
   DOT
+  reordered_multiline_bindings = canonicalize.call("reordered-multiline-bindings", <<~DOT)
+    0 [label="/\\ snapshotStore = [k1 |-> NoVal\\n  k2 |-> NoVal]\\n/\\ tx = {}",style = filled];
+    1 [label="/\\ snapshotStore = [k1 |-> t1\\n  k2 |-> NoVal]\\n/\\ tx = {}"];
+    0 -> 1 [label="advance",color="black"];
+  DOT
+  ordered_multiline_bindings = canonicalize.call("ordered-multiline-bindings", <<~DOT)
+    0 [label="/\\ tx = {}\\n/\\ snapshotStore = [k1 |-> NoVal\\n  k2 |-> NoVal]",style = filled];
+    1 [label="/\\ tx = {}\\n/\\ snapshotStore = [k1 |-> t1\\n  k2 |-> NoVal]"];
+    0 -> 1 [label="advance",color="black"];
+  DOT
 
   abort "duplicate edge was not collapsed" unless duplicate_graph.fetch("edgeCounts") == { "rawRecords" => 3, "uniqueRelations" => 2 }
   abort "action labels were not retained" unless duplicate_graph.fetch("edges") == [{ "from" => "start", "action" => "advance", "to" => "done" }, { "from" => "start", "action" => "retry", "to" => "done" }]
@@ -56,4 +66,5 @@ Dir.mktmpdir do |directory|
   abort "semantic edge difference was ignored" if semantic_projection.call(relation_graph) == semantic_projection.call(different_graph)
   abort "top-level binding order was not normalized" unless semantic_projection.call(reordered_bindings) == semantic_projection.call(ordered_bindings)
   abort "changed top-level binding was ignored" if semantic_projection.call(reordered_bindings) == semantic_projection.call(changed_binding)
+  abort "multiline binding value prevented top-level normalization" unless semantic_projection.call(reordered_multiline_bindings) == semantic_projection.call(ordered_multiline_bindings)
 end
