@@ -3,6 +3,10 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output=
+fixture_export_timeout_seconds=180
+pluscal_translation_timeout_seconds=30
+tlc_timeout_seconds=90
+timeout_exit=124
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --case) case_id="$2"; shift 2 ;; --checkout) checkout="$2"; shift 2 ;;
@@ -12,6 +16,32 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 fail() { mkdir -p "$output"; jq -n --arg whatFailed "$1" --arg whereItFailed "$2" --arg expected "$3" --arg actual "$4" --arg systemChange "$5" --arg nextSafeAction "$6" '{whatFailed:$whatFailed,whereItFailed:$whereItFailed,expected:$expected,actual:$actual,systemChange:$systemChange,nextSafeAction:$nextSafeAction}' > "$output/diagnostic.json"; exit 2; }
+run_bounded() {
+  local limit_seconds="$1" stdout="$2" stderr="$3" pid started status timed_out=0
+  shift 3
+  /usr/bin/perl -MPOSIX=setsid -e 'setsid() or die "setsid: $!"; exec @ARGV or die "exec $ARGV[0]: $!";' -- "$@" > "$stdout" 2> "$stderr" &
+  pid=$!
+  started=$SECONDS
+  while kill -0 "$pid" 2>/dev/null; do
+    if (( SECONDS - started >= limit_seconds )); then
+      timed_out=1
+      # The Perl launcher makes this command the leader of its own session and process group.
+      # A negative PID therefore terminates the command and every descendant it started.
+      kill -TERM -- "-$pid" 2>/dev/null || true
+      sleep 5
+      kill -KILL -- "-$pid" 2>/dev/null || true
+      break
+    fi
+    sleep 1
+  done
+  if wait "$pid"; then status=0; else status=$?; fi
+  [ "$timed_out" -eq 0 ] || return "$timeout_exit"
+  return "$status"
+}
+timeout_failure() {
+  local operation="$1" fixture="$2" limit_seconds="$3" stdout="$4" stderr="$5"
+  fail "$operation timed out" "fixture $fixture / $operation" "the bounded fixture to finish within $limit_seconds seconds" "fixture $fixture exceeded the $limit_seconds-second limit; inspect $stdout and $stderr" "The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made." "Inspect the retained output, repair the named operation or fixture, then dispatch one fresh hosted candidate run."
+}
 [ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] || exit 2
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
@@ -37,10 +67,17 @@ fi
 
 if [ "$case_id" = all ]; then
   suite="$output/pluscal-differential-audit"
-  if ! ids="$(swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list)"; then
-    mkdir "$suite"
+  mkdir -p "$suite"
+  if run_bounded "$fixture_export_timeout_seconds" "$suite/fixture-list.stdout" "$suite/fixture-list.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list; then
+    ids="$(<"$suite/fixture-list.stdout")"
+  else
+    status=$?
     jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAuditV1",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
-    jq -n '{whatFailed:"PlusCal differential audit",whereItFailed:"pluscal-oracle-harness --list",expected:"the registered Algorithm fixture list",actual:"the fixture-export harness did not list fixtures",systemChange:"No fixture or TLC run started; no admission claim was made.",nextSafeAction:"Repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
+    if [ "$status" -eq "$timeout_exit" ]; then
+      jq -n --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" --argjson limit "$fixture_export_timeout_seconds" '{whatFailed:"Fixture registry export timed out",whereItFailed:"fixture registry / fixture export",expected:("the registered bounded fixtures within " + ($limit | tostring) + " seconds"),actual:("fixture registry export exceeded the limit; inspect " + $stdout + " and " + $stderr),systemChange:"The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made.",nextSafeAction:"Inspect retained output, repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
+    else
+      jq -n --argjson status "$status" --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" '{whatFailed:"Fixture registry export failed",whereItFailed:"fixture registry / fixture export",expected:"the registered Algorithm fixture list",actual:("the fixture-export harness exited " + ($status | tostring) + "; inspect " + $stdout + " and " + $stderr),systemChange:"Fixture export output was retained; no fixture or TLC run started; no admission claim was made.",nextSafeAction:"Repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
+    fi
     exit 2
   fi
   printf '{"requestedRef":"%s","resolvedCommit":"%s","validationCommit":"%s","mode":"%s"}\n' "$requested_ref" "$commit" "$validation_commit" "$mode" > "$output/run.json"
@@ -73,7 +110,16 @@ if [ "$case_id" = all ]; then
   exit "$status"
 fi
 
-swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit" || fail "Fixture export failed" "$case_id" "renderable registered fixture" "harness failed" "No TLC run" "Repair the fixture boundary."
+mkdir -p "$output/input"
+if run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
+  :
+else
+  status=$?
+  if [ "$status" -eq "$timeout_exit" ]; then
+    timeout_failure "Fixture export" "$case_id" "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr"
+  fi
+  fail "Fixture export failed" "fixture $case_id / fixture export" "a renderable registered fixture" "fixture export exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "Fixture export output was retained; no TLC run started; no admission claim was made." "Repair the fixture boundary, then dispatch one fresh hosted candidate run."
+fi
 jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg config "$(shasum -a 256 "$output/input/model.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,cfgSHA256:$config,plusCalSourceSHA256:$pluscal}' > "$output/case.json"
 jq -n --arg id "$case_id" --arg commit "$commit" '{runner:{caseID:$id,engine:"pluscal-oracle",runID:$commit},swift:{caseID:$id,engine:"swift",runID:$commit},tlc:{caseID:$id,engine:"tlc",runID:$commit}}' > "$output/correlations.json"
 printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":false,"swiftTLC":false,"pluscalTLC":false}\n' > "$output/raw-artifacts.json"
@@ -87,13 +133,33 @@ module_name() { awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"
 prepare_module() { local source="$1" destination="$2" name; name="$(module_name "$source")"; [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."; cp "$source" "$destination/$name.tla"; printf '%s\n' "$name"; }
 pluscal_module="$(prepare_module "$output/input/pluscal-source.tla" "$output/translated")"
 cp "$output/input/model.cfg" "$output/translated/model.cfg"
-jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg tlc "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir <kind>/states -dump dot,actionlabels <kind>/graph.dot -config <kind>/model.cfg <kind>/<module>.tla" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:$tlc}' > "$output/commands.json"
-java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla" > "$output/translation.stdout" 2> "$output/translation.stderr" || fail "PlusCal translation failed" "$case_id" "pcal.trans success" "See translation.stderr" "Inputs retained" "Inspect the rendered source."
+jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg tlc "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir <kind>/states -dump dot,actionlabels <kind>/graph.dot -config <kind>/model.cfg <kind>/<module>.tla" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:$tlc,timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
+if run_bounded "$pluscal_translation_timeout_seconds" "$output/translation.stdout" "$output/translation.stderr" java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla"; then
+  :
+else
+  status=$?
+  if [ "$status" -eq "$timeout_exit" ]; then
+    timeout_failure "PlusCal translation" "$case_id" "$pluscal_translation_timeout_seconds" "$output/translation.stdout" "$output/translation.stderr"
+  fi
+  fail "PlusCal translation failed" "fixture $case_id / PlusCal translation" "pcal.trans to translate the rendered PlusCal module" "translator exited $status; inspect $output/translation.stdout and $output/translation.stderr" "Translator output and inputs were retained; no admission claim was made." "Inspect the rendered source and translator output, then dispatch one fresh hosted candidate run."
+fi
 for kind in swift pluscal; do
   if [ "$kind" = swift ]; then module_name="$(prepare_module "$output/input/swift-lowered.tla" "$output/$kind-tlc")"; else module_name="$pluscal_module"; cp "$output/translated/$module_name.tla" "$output/$kind-tlc/$module_name.tla"; fi
   cp "$output/input/model.cfg" "$output/$kind-tlc/model.cfg"
   module="$output/$kind-tlc/$module_name.tla"; config="$output/$kind-tlc/model.cfg"
-  java -cp "$jar" tlc2.TLC -workers 1 -fp 1 -deadlock -metadir "$output/$kind-tlc/states" -dump dot,actionlabels "$output/$kind-tlc/graph.dot" -config "$config" "$module" > "$output/$kind-tlc/tlc.stdout" 2> "$output/$kind-tlc/tlc.stderr" || fail "TLC run failed" "$kind" "complete bounded TLC graph" "See retained TLC stdout and stderr" "Inputs retained" "Inspect retained TLC output."
+  case "$kind" in
+    swift) tlc_label="Swift TLC graph exploration" ;;
+    pluscal) tlc_label="PlusCal TLC graph exploration" ;;
+  esac
+  if run_bounded "$tlc_timeout_seconds" "$output/$kind-tlc/tlc.stdout" "$output/$kind-tlc/tlc.stderr" java -cp "$jar" tlc2.TLC -workers 1 -fp 1 -deadlock -metadir "$output/$kind-tlc/states" -dump dot,actionlabels "$output/$kind-tlc/graph.dot" -config "$config" "$module"; then
+    :
+  else
+    status=$?
+    if [ "$status" -eq "$timeout_exit" ]; then
+      timeout_failure "$tlc_label" "$case_id" "$tlc_timeout_seconds" "$output/$kind-tlc/tlc.stdout" "$output/$kind-tlc/tlc.stderr"
+    fi
+    fail "$tlc_label failed" "fixture $case_id / $kind TLC" "TLC to complete the bounded graph" "TLC exited $status; inspect $output/$kind-tlc/tlc.stdout and $output/$kind-tlc/tlc.stderr" "TLC output and inputs were retained; no admission claim was made." "Inspect retained TLC output, repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."
+  fi
   "$root/validation/canonicalize-tlc-dot.rb" "$output/$kind-tlc/graph.dot" "$output/$kind-tlc/canonical-graph.json"
 done
 cmp -s "$output/swift-tlc/canonical-graph.json" "$output/pluscal-tlc/canonical-graph.json" || fail "TLC graphs differ" "$case_id" "exact canonical graphs" "Graphs differ" "No admission claim" "Inspect retained graphs."
