@@ -11,7 +11,8 @@
     { "id": "structured-record-functions", "fixtureID": "structured-record-functions" },
     { "id": "procedure-call-return", "fixtureID": "procedure-call-return" },
     { "id": "boulanger-upstream-port", "fixtureID": "boulanger-upstream-port" },
-    { "id": "kvsnap-upstream-port", "fixtureID": "kvsnap-upstream-port" }
+    { "id": "kvsnap-upstream-port", "fixtureID": "kvsnap-upstream-port" },
+    { "id": "voteproof-upstream-port", "fixtureID": "voteproof-upstream-port" }
   ],
   "suite": {
     "id": "pluscal-differential-audit",
@@ -22,7 +23,8 @@
       "structured-record-functions",
       "procedure-call-return",
       "boulanger-upstream-port",
-      "kvsnap-upstream-port"
+      "kvsnap-upstream-port",
+      "voteproof-upstream-port"
     ]
   }
 }
