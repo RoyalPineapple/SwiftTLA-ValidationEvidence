@@ -2,10 +2,10 @@ import SwiftTLA
 import SwiftTLAMacros
 
 @TLAModel
-public struct K5ProcedureCallReturnWitness {
+public struct ProcedureCallReturnWitness {
     public static var spec: TLASpec {
-        #spec("K5ProcedureCallReturnWitness") {
-            Algorithm("K5ProcedureCallReturnWitness") {
+        #spec("ProcedureCallReturnWitness") {
+            Algorithm("ProcedureCallReturnWitness") {
                 let output = SharedVar(initial: 0)
 
                 Procedure("addOffset", parameters: Int.self) { value in
