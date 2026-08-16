@@ -82,7 +82,7 @@ public struct KVsnapWitness {
             FormalDefinition(
                 "InitialState",
                 parameters: [],
-                body: Function<Key, Value>.mapping { _ in .second(.noVal) }.raw
+                body: Function<Key, Value>.mapping { _ in Value.second(.noVal) }.raw
             )
             FormalDefinition("SetToSeq", parameters: [.value("S")], body: .choose(
                 .functionSet(.integerRange(.int(1), .cardinality(.variable("S"))), .variable("S")), "f",
