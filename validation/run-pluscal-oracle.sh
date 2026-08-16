@@ -86,7 +86,6 @@ if [ "$case_id" = all ]; then
     [ -n "$id" ] || continue
     "$0" --case "$id" --checkout "$checkout" --commit "$commit" --requested-ref "$requested_ref" --mode "$mode" --validation-commit "$validation_commit" --output "$output/$id" || status=$?
   done <<< "$ids"
-  mkdir "$suite"
   fixture_results="$({ while IFS= read -r id; do
     [ -n "$id" ] || continue
     if [ -f "$output/$id/comparison.json" ] && jq -e '.conformant == true' "$output/$id/comparison.json" >/dev/null; then
@@ -110,7 +109,6 @@ if [ "$case_id" = all ]; then
   exit "$status"
 fi
 
-mkdir -p "$output/input"
 if run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
   :
 else
