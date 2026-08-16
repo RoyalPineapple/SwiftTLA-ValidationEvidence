@@ -87,7 +87,7 @@ public struct KVsnapWitness {
             Algorithm("KVsnap") {
                 let store: SharedVariable<Function<Key, Value>> = SharedVar(initial: FormalCall("InitialState"))
                 let tx = SharedVar(initial: SetExpr<Transaction>())
-                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>())
+                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>.mapping { _ in SetExpr<Key>() })
                 Each(Transaction.all, fairness: .weak) { selfID in
                     let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar(initial: FormalCall("InitialState"))
                     let readKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
@@ -117,7 +117,7 @@ public struct KVsnapWitness {
                     }
                     Do(Step.commit) {
                         If(missed[selfID].intersection(writeKeys.expr).isEmpty) {
-                            Let(tx.removing(selfID)) { committedTransactions in
+                            Let(tx.removing(selfID.expr)) { committedTransactions in
                                 Assign(tx, to: committedTransactions.expr)
                                 Assign(missed, to: Function<Transaction, SetExpr<Key>>.mapping { other in
                                     If(committedTransactions.expr.contains(other), then: missed[other.expr].union(writeKeys.expr), else: missed[other.expr])
