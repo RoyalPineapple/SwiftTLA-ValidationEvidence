@@ -26,13 +26,18 @@ let output = URL(fileURLWithPath: arguments[2])
 do {
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
     let direct = fixture.specification().tlaModule
-    let config = fixture.configuration
+    let swiftConfiguration = fixture.swiftConfiguration
+    let plusCalConfiguration = fixture.plusCalConfiguration
     let plusCal = try fixture.plusCalModule()
     try Data(direct.utf8).write(to: output.appendingPathComponent("swift-lowered.tla"), options: .atomic)
-    try Data(config.utf8).write(to: output.appendingPathComponent("model.cfg"), options: .atomic)
+    try Data(swiftConfiguration.utf8).write(to: output.appendingPathComponent("swift.cfg"), options: .atomic)
     try Data(plusCal.utf8).write(to: output.appendingPathComponent("pluscal-source.tla"), options: .atomic)
+    try Data(plusCalConfiguration.utf8).write(to: output.appendingPathComponent("pluscal.cfg"), options: .atomic)
     let metadata = Metadata(fixtureID: fixture.id, swiftTLACommit: arguments[3], inputSHA256: [
-        "swift-lowered.tla": digest(direct), "model.cfg": digest(config), "pluscal-source.tla": digest(plusCal)
+        "swift-lowered.tla": digest(direct),
+        "swift.cfg": digest(swiftConfiguration),
+        "pluscal-source.tla": digest(plusCal),
+        "pluscal.cfg": digest(plusCalConfiguration)
     ])
     try JSONEncoder().encode(metadata).write(to: output.appendingPathComponent("metadata.json"), options: .atomic)
 } catch {
