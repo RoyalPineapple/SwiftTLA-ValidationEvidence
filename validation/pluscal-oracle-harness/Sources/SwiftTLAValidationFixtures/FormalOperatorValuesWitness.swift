@@ -18,6 +18,7 @@ public struct FormalOperatorValuesWitness {
                     (.left, 0),
                     (.right, 0)
                 ))
+                counters
 
                 Each(Worker.all) { worker in
                     Do("advance") {

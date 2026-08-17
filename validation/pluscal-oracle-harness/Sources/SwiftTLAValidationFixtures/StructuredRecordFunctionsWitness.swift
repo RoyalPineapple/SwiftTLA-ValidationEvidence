@@ -35,6 +35,7 @@ public struct StructuredRecordFunctionsWitness {
                     (.left, Record<Door>.literal(.init(Door.open, false))),
                     (.right, Record<Door>.literal(.init(Door.open, false)))
                 ))
+                doors
 
                 Each(Car.all) { car in
                     Do("openDoor") {

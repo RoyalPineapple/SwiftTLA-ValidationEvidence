@@ -5,6 +5,7 @@ public struct ScopeBindingSubstitutionWitness {
         TLASpec("ScopeBindingSubstitutionWitness") {
             Algorithm("ScopeBindingSubstitutionWitness") {
                 let total = SharedVar("total", initial: 0)
+                total
                 let commit = Macro { (destination: MacroParameter<Int>, value: MacroParameter<Int>) in
                     Assign(destination, to: value.expr)
                 }
