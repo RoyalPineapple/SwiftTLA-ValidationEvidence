@@ -28,6 +28,14 @@ jq -e '
 ' "$manifest" >/dev/null
 
 fixtures="$root/validation/pluscal-oracle-harness/Sources/SwiftTLAValidationFixtures"
+vote_proof="$fixtures/VoteProofWitness.swift"
+registry="$fixtures/FixtureRegistry.swift"
+grep -Fq 'public var tlaValue: TLAValue { .string(rawValue) }' "$vote_proof"
+[ "$(grep -Fc 'guard case .string(let rawValue) = formalValue else { return nil }' "$vote_proof")" -eq 2 ]
+grep -Fq 'CONSTANT Value = {\"v1\", \"v2\"}' "$registry"
+grep -Fq 'CONSTANT Acceptor = {\"a1\", \"a2\", \"a3\"}' "$registry"
+grep -Fq 'CONSTANT Quorum = {{\"a1\", \"a2\"}, {\"a1\", \"a3\"}, {\"a2\", \"a3\"}, {\"a1\", \"a2\", \"a3\"}}' "$registry"
+
 perl -0ne '
   while (/\blet\s+(\w+)(?:\s*:\s*[^=]+)?\s*=\s*(?:SharedVar|LocalVar)\b/g) {
     $name = $1;

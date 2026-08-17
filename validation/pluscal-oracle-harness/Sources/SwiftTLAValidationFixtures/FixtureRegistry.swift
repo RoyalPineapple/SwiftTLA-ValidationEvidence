@@ -92,7 +92,7 @@ public enum OracleFixtureRegistry {
     )
     public static let voteProofUpstreamPort = OracleFixture(
         id: "voteproof-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK VInv1 VInv2 VInv3 VInv4\nPROPERTIES Refines\nCONSTANT Value = {v1, v2}\nCONSTANT Acceptor = {a1, a2, a3}\nCONSTANT Quorum = {{a1, a2}, {a1, a3}, {a2, a3}, {a1, a2, a3}}\nCONSTANT Ballot = {0, 1, 2}\nCHECK_DEADLOCK FALSE\n",
+        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK VInv1 VInv2 VInv3 VInv4\nPROPERTIES Refines\nCONSTANT Value = {\"v1\", \"v2\"}\nCONSTANT Acceptor = {\"a1\", \"a2\", \"a3\"}\nCONSTANT Quorum = {{\"a1\", \"a2\"}, {\"a1\", \"a3\"}, {\"a2\", \"a3\"}, {\"a1\", \"a2\", \"a3\"}}\nCONSTANT Ballot = {0, 1, 2}\nCHECK_DEADLOCK FALSE\n",
         specification: { VoteProofWitness.spec }
     )
     public static let fixtures = [
