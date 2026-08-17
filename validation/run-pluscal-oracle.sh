@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output=
 fixture_export_timeout_seconds=180
+fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
 tlc_timeout_seconds=90
 timeout_exit=124
@@ -71,13 +72,13 @@ fi
 if [ "$case_id" = all ]; then
   suite="$output/pluscal-differential-audit"
   mkdir -p "$suite"
-  if run_bounded "$fixture_export_timeout_seconds" "$suite/fixture-list.stdout" "$suite/fixture-list.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list; then
+  if run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout" "$suite/fixture-list.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list; then
     ids="$(<"$suite/fixture-list.stdout")"
   else
     status=$?
     jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAuditV1",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
     if [ "$status" -eq "$timeout_exit" ]; then
-      jq -n --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" --argjson limit "$fixture_export_timeout_seconds" '{whatFailed:"Fixture registry export timed out",whereItFailed:"fixture registry / fixture export",expected:("the registered bounded fixtures within " + ($limit | tostring) + " seconds"),actual:("fixture registry export exceeded the limit; inspect " + $stdout + " and " + $stderr),systemChange:"The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made.",nextSafeAction:"Inspect retained output, repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
+      jq -n --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" --argjson limit "$fixture_registry_timeout_seconds" '{whatFailed:"Fixture registry export timed out",whereItFailed:"fixture registry / fixture export",expected:("the registered bounded fixtures within " + ($limit | tostring) + " seconds"),actual:("fixture registry export exceeded the limit; inspect " + $stdout + " and " + $stderr),systemChange:"The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made.",nextSafeAction:"Inspect retained output, repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     else
       jq -n --argjson status "$status" --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" '{whatFailed:"Fixture registry export failed",whereItFailed:"fixture registry / fixture export",expected:"the registered Algorithm fixture list",actual:("the fixture-export harness exited " + ($status | tostring) + "; inspect " + $stdout + " and " + $stderr),systemChange:"Fixture export output was retained; no fixture or TLC run started; no admission claim was made.",nextSafeAction:"Repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     fi
