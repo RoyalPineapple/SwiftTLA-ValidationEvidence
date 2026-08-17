@@ -4,13 +4,13 @@ import SwiftTLA
 /// This is validation policy and intentionally is not a SwiftTLA public API.
 public struct OracleFixture: Sendable {
     public let id: String
-    public let swiftConfiguration: String
-    public let plusCalConfiguration: String
+    public let swiftConfiguration: String?
+    public let plusCalConfiguration: String?
     private let makeSpecification: (@Sendable () -> TLASpec)?
 
     public init(
         id: String,
-        swiftConfiguration: String,
+        swiftConfiguration: String? = nil,
         plusCalConfiguration: String? = nil,
         specification: (@Sendable () -> TLASpec)? = nil
     ) {
@@ -45,6 +45,19 @@ public struct OracleFixture: Sendable {
             )
         }
         return modules[0]
+    }
+
+    public func configurations() throws -> (swift: String, plusCal: String) {
+        guard let swiftConfiguration, let plusCalConfiguration else {
+            throw OracleFixtureDiagnostic(
+                failedConcept: "Canonical upstream configuration",
+                fixtureID: id,
+                expected: "the source-owned canonical corpus artifact",
+                actual: "a local validation configuration was requested",
+                nextSafeAction: "Stage the SHA-bound canonical corpus artifact before running this fixture."
+            )
+        }
+        return (swiftConfiguration, plusCalConfiguration)
     }
 }
 
@@ -90,16 +103,13 @@ public enum OracleFixtureRegistry {
         specification: { ProcedureCallReturnWitness.spec }
     )
     public static let boulangerUpstreamPort = OracleFixture(
-        id: "boulanger-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nCONSTRAINT StateConstraint\n"
+        id: "boulanger-upstream-port"
     )
     public static let kvsnapUpstreamPort = OracleFixture(
-        id: "kvsnap-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n"
+        id: "kvsnap-upstream-port"
     )
     public static let voteProofUpstreamPort = OracleFixture(
-        id: "voteproof-upstream-port",
-        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK VInv1 VInv2 VInv3 VInv4\nPROPERTIES Refines\nCONSTANT Value = {\"v1\", \"v2\"}\nCONSTANT Acceptor = {\"a1\", \"a2\", \"a3\"}\nCONSTANT Quorum = {{\"a1\", \"a2\"}, {\"a1\", \"a3\"}, {\"a2\", \"a3\"}, {\"a1\", \"a2\", \"a3\"}}\nCONSTANT Ballot = {0, 1, 2}\nCHECK_DEADLOCK FALSE\n"
+        id: "voteproof-upstream-port"
     )
     public static let fixtures = [
         scopeBindingSubstitution,
