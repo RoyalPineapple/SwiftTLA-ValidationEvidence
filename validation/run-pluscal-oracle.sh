@@ -72,7 +72,7 @@ fi
 if [ "$case_id" = all ]; then
   suite="$output/pluscal-differential-audit"
   mkdir -p "$suite"
-  if run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout" "$suite/fixture-list.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list; then
+  if run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout" "$suite/fixture-list.stderr" swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --list; then
     ids="$(<"$suite/fixture-list.stdout")"
   else
     status=$?
@@ -113,7 +113,7 @@ if [ "$case_id" = all ]; then
   exit "$status"
 fi
 
-if run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
+if run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
   :
 else
   status=$?
