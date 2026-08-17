@@ -55,7 +55,7 @@ public struct VoteProofWitness {
                 let ballots = SetExpr<Int>.literal(0, 1, 2)
 
                 FormalDefinition("SafeAt", taking: Int.self, Value.self) { ballot, value in
-                    LetRec("SA", over: ballots, taking: Int.self, { recursion, currentBallot in
+                    let safeAt: Expr<Bool> = LetRec("SA", over: ballots, taking: Int.self, { recursion, currentBallot in
                         currentBallot == 0 || Exists(in: quorums) { quorum in
                             ForAll(in: quorum.expr) { acceptor in
                                 maxBal[acceptor] >= currentBallot.expr
@@ -79,6 +79,7 @@ public struct VoteProofWitness {
                             }
                         }
                     }, in: { recursion in recursion(ballot) })
+                    safeAt
                 }
 
                 let increaseMaxBal = Macro { (ballot: MacroParameter<Int>, acceptor: MacroParameter<Acceptor>) in
