@@ -18,12 +18,12 @@ jq -e '
   .schema == "SwiftTLAExternalModuleBundleV1"
     and .fixtureID == "voteproof-upstream-port"
     and (.modules | sort_by(.name) == [
-      {name: "FiniteSetTheorems", path: "library/FiniteSetTheorems.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "ba288f643559652a855f1ecb8c45e9de81f82409037e73681dd925ccd9123bf0"},
-      {name: "Folds", path: "modules/Folds.tla", source: {repository: "https://github.com/tlaplus/CommunityModules.git", githubRepository: "tlaplus/CommunityModules", commit: "a8068a4c21ed76b339b9a2aa6de69d78f64f6422"}, sha256: "3fa7a06cbef5a1981f1ad021bdb58f9790f76b072e4fe585bc3f9d8b8dcb7bb4"},
-      {name: "Functions", path: "modules/Functions.tla", source: {repository: "https://github.com/tlaplus/CommunityModules.git", githubRepository: "tlaplus/CommunityModules", commit: "a8068a4c21ed76b339b9a2aa6de69d78f64f6422"}, sha256: "3ca67b609e4e934e02ab2ba618699439f211c956495d8047e0fed0560ac3c301"},
-      {name: "NaturalsInduction", path: "library/NaturalsInduction.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "dcb3411b6ed5510bc8b68b823b3153d5220b48b8f0e22a4c848a7d403e3585d5"},
-      {name: "TLAPS", path: "library/TLAPS.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "aae5df72d522bdb047e467365ae9c7c15c163ea8027920460e075435e0035ff1"},
-      {name: "WellFoundedInduction", path: "library/WellFoundedInduction.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "cf06fa60a5bc6139e061075a7593517f8e89ac6aa223f921ede74879056329f3"}
+      {name: "FiniteSetTheorems", path: "library/FiniteSetTheorems.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "484bf0f9ab6a69ef45f7282f7f92dcf1e6ae139e44117b0d5a4427635818e773"},
+      {name: "Folds", path: "modules/Folds.tla", source: {repository: "https://github.com/tlaplus/CommunityModules.git", githubRepository: "tlaplus/CommunityModules", commit: "a8068a4c21ed76b339b9a2aa6de69d78f64f6422"}, sha256: "aa59063fd600bb640b2ae24dc85ef770277ef5bf7955092b76b8b471790086da"},
+      {name: "Functions", path: "modules/Functions.tla", source: {repository: "https://github.com/tlaplus/CommunityModules.git", githubRepository: "tlaplus/CommunityModules", commit: "a8068a4c21ed76b339b9a2aa6de69d78f64f6422"}, sha256: "b54ff63b7c76c327525c17c188d5f9f5e53d92f3fd701f5e2ba54f0f54391063"},
+      {name: "NaturalsInduction", path: "library/NaturalsInduction.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "08f52420cdaaf11292ed366782b5ce5b596bb7cbe789526a1cfd8806dbf98624"},
+      {name: "TLAPS", path: "library/TLAPS.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "9afe54984062748a0568966434cc0945d682f8cd89fdbc38f73b5579751b0c55"},
+      {name: "WellFoundedInduction", path: "library/WellFoundedInduction.tla", source: {repository: "https://github.com/tlaplus/tlapm.git", githubRepository: "tlaplus/tlapm", commit: "4600b24c6d95a25ff081ad37b63b2a01c29d43a5"}, sha256: "6f2f274c2e987d1edcf004d8e37b053f1f82b912e66d6a51bae0af8012ddcbec"}
     ])
 ' "$manifest" >/dev/null
 
