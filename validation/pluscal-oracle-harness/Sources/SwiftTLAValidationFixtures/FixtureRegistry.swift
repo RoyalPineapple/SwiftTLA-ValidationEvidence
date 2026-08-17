@@ -1,4 +1,5 @@
 import SwiftTLA
+import UpstreamParity
 
 /// One bounded consumer fixture checked by independent external lowerings.
 /// This is validation policy and intentionally is not a SwiftTLA public API.
@@ -90,6 +91,11 @@ public enum OracleFixtureRegistry {
         swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK SnapshotIsolation\nPROPERTIES Termination\nCONSTANT k1 = k1\nCONSTANT k2 = k2\nCONSTANT t1 = t1\nCONSTANT t2 = t2\nCONSTANT t3 = t3\nCONSTANT NoVal = NoVal\n",
         specification: { KVsnapWitness.spec }
     )
+    public static let voteProofUpstreamPort = OracleFixture(
+        id: "voteproof-upstream-port",
+        swiftConfiguration: "SPECIFICATION Spec\nINVARIANTS TypeOK VInv1 VInv2 VInv3 VInv4\nPROPERTIES Refines\nCONSTANT Value = {v1, v2}\nCONSTANT Acceptor = {a1, a2, a3}\nCONSTANT Quorum = {{a1, a2}, {a1, a3}, {a2, a3}, {a1, a2, a3}}\nCONSTANT Ballot = {0, 1, 2}\nCHECK_DEADLOCK FALSE\n",
+        specification: { VoteProofModel.spec }
+    )
     public static let fixtures = [
         scopeBindingSubstitution,
         formalOperatorValues,
@@ -97,7 +103,8 @@ public enum OracleFixtureRegistry {
         structuredRecordFunctions,
         procedureCallReturn,
         boulangerUpstreamPort,
-        kvsnapUpstreamPort
+        kvsnapUpstreamPort,
+        voteProofUpstreamPort
     ]
 
     public static func fixture(id: String) -> OracleFixture? {
