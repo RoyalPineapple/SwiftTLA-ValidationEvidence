@@ -8,7 +8,10 @@ grep -Fq ' --mode candidate --validation-commit ' "$runner"
 grep -Fq 'if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi' "$runner"
 grep -Fq 'fixture_registry_timeout_seconds=600' "$runner"
 grep -Fq 'run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout"' "$runner"
-[ "$(grep -Fc 'swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness"' "$runner")" -eq 2 ]
+[ "$(grep -Fc 'swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness"' "$runner")" -eq 3 ]
+grep -Fq 'is_canonical_corpus_fixture()' "$runner"
+grep -Fq 'stage_canonical_corpus_fixture()' "$runner"
+grep -Fq '.swiftTLASHA == $commit' "$runner"
 grep -Fq 'stage_voteproof_tlaps_modules()' "$runner"
 grep -Fq 'if [ "$case_id" = voteproof-upstream-port ]; then stage_voteproof_tlaps_modules; fi' "$runner"
 grep -Fq 'external-module-provenance.json' "$runner"
@@ -28,10 +31,10 @@ jq -e '
 ' "$manifest" >/dev/null
 
 fixtures="$root/validation/pluscal-oracle-harness/Sources/SwiftTLAValidationFixtures"
-vote_proof="$fixtures/VoteProofWitness.swift"
 registry="$fixtures/FixtureRegistry.swift"
-grep -Fq 'public var tlaValue: TLAValue { .string(rawValue) }' "$vote_proof"
-[ "$(grep -Fc 'guard case .string(let rawValue) = formalValue else { return nil }' "$vote_proof")" -eq 2 ]
+[ ! -e "$fixtures/BoulangerWitness.swift" ]
+[ ! -e "$fixtures/KVsnapWitness.swift" ]
+[ ! -e "$fixtures/VoteProofWitness.swift" ]
 grep -Fq 'CONSTANT Value = {\"v1\", \"v2\"}' "$registry"
 grep -Fq 'CONSTANT Acceptor = {\"a1\", \"a2\", \"a3\"}' "$registry"
 grep -Fq 'CONSTANT Quorum = {{\"a1\", \"a2\"}, {\"a1\", \"a3\"}, {\"a2\", \"a3\"}, {\"a1\", \"a2\", \"a3\"}}' "$registry"

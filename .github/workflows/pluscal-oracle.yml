@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   validate:
@@ -34,6 +35,21 @@ jobs:
           commit="$(git -C SwiftTLA rev-parse HEAD)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Download source-owned canonical corpus
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.commit }}
+          CORPUS_ROOT: ${{ runner.temp }}/canonical-corpus
+        run: |
+          set -euo pipefail
+          artifact_name="canonical-corpus-$CANDIDATE_SHA"
+          artifact_url="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/artifacts?name=$artifact_name&per_page=100" | jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | sort_by(.created_at) | last | .archive_download_url // empty')"
+          [ -n "$artifact_url" ]
+          mkdir -p "$CORPUS_ROOT"
+          curl --fail --location --retry 3 --connect-timeout 10 \
+            -H "Authorization: Bearer $GH_TOKEN" "$artifact_url" \
+            -o "$CORPUS_ROOT/corpus.zip"
+          unzip -q "$CORPUS_ROOT/corpus.zip" -d "$CORPUS_ROOT/input"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -48,6 +64,7 @@ jobs:
             --requested-ref "${{ inputs.swifttla_ref }}" \
             --mode "${{ inputs.admission_mode }}" \
             --validation-commit "${{ github.sha }}" \
+            --canonical-corpus "${{ runner.temp }}/canonical-corpus/input" \
             --output "$EVIDENCE_ROOT"
       - name: Upload retained candidate evidence
         if: always()

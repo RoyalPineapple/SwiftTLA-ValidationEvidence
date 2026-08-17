@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output=
+case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus=
 fixture_export_timeout_seconds=180
 fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
@@ -13,7 +13,9 @@ while [ "$#" -gt 0 ]; do
     --case) case_id="$2"; shift 2 ;; --checkout) checkout="$2"; shift 2 ;;
     --commit) commit="$2"; shift 2 ;; --requested-ref) requested_ref="$2"; shift 2 ;;
     --mode) mode="$2"; shift 2 ;; --validation-commit) validation_commit="$2"; shift 2 ;;
-    --output) output="$2"; shift 2 ;; *) exit 2 ;;
+    --output) output="$2"; shift 2 ;;
+    --canonical-corpus) canonical_corpus="$2"; shift 2 ;;
+    *) exit 2 ;;
   esac
 done
 fail() { mkdir -p "$output"; jq -n --arg whatFailed "$1" --arg whereItFailed "$2" --arg expected "$3" --arg actual "$4" --arg systemChange "$5" --arg nextSafeAction "$6" '{whatFailed:$whatFailed,whereItFailed:$whereItFailed,expected:$expected,actual:$actual,systemChange:$systemChange,nextSafeAction:$nextSafeAction}' > "$output/diagnostic.json"; exit 2; }
@@ -75,12 +77,49 @@ stage_voteproof_tlaps_modules() {
   mv "$output/input/metadata.next.json" "$output/input/metadata.json"
   external_module_bundle_json="$(jq -c '. + {manifestSHA256: $manifestSHA256}' --arg manifestSHA256 "$provenance_digest" "$manifest")"
 }
-[ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] || exit 2
+[ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] && [ -n "$canonical_corpus" ] || exit 2
 if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
 [ ! -e "$output" ] || fail "Evidence directory exists" "$output" "fresh directory" "already exists" "No run started" "Choose a fresh output directory."
 mkdir -p "$output"
+
+is_canonical_corpus_fixture() {
+  case "$1" in
+    boulanger-upstream-port|kvsnap-upstream-port|voteproof-upstream-port) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+stage_canonical_corpus_fixture() {
+  local fixture="$1" input manifest swift_path pluscal_path import_path expected actual hashes
+  input="$output/input"
+  manifest="$canonical_corpus/manifest.json"
+  [ -f "$manifest" ] || fail "Canonical corpus artifact is missing" "$manifest" "the SHA-bound SwiftTLA canonical corpus manifest" "manifest was not found" "No fixture export or TLC run started" "Run the source canonical-corpus export for this exact SwiftTLA SHA."
+  jq -e --arg commit "$commit" --arg fixture "$fixture" '
+    .schema == "CanonicalCorpusExportV1"
+      and .swiftTLASHA == $commit
+      and ([.cases[] | select(.id == $fixture)] | length == 1)
+  ' "$manifest" >/dev/null || fail "Canonical corpus artifact does not match candidate" "$manifest" "schema, candidate SHA, and fixture ID to match" "manifest identity check failed" "No fixture export or TLC run started" "Use the retained source artifact for this exact candidate SHA."
+  while IFS=$'\t' read -r import_path expected; do
+    [ -f "$canonical_corpus/$import_path" ] || fail "Canonical corpus file is missing" "$import_path" "the manifest-listed source export file" "file was not found" "No fixture export or TLC run started" "Re-export the source-owned canonical corpus."
+    actual="$(shasum -a 256 "$canonical_corpus/$import_path" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || fail "Canonical corpus file digest differs" "$import_path" "$expected" "$actual" "No fixture export or TLC run started" "Use the unmodified source-owned canonical corpus artifact."
+  done < <(jq -r --arg fixture "$fixture" '.cases[] | select(.id == $fixture) | .files[] | [.path, .sha256] | @tsv' "$manifest")
+  swift_path="$(jq -r --arg fixture "$fixture" '.cases[] | select(.id == $fixture) | [.files[].path | select(test("/swift/[^/]+\\.tla$"))] | if length == 1 then .[0] else empty end' "$manifest")"
+  pluscal_path="$(jq -r --arg fixture "$fixture" '.cases[] | select(.id == $fixture) | [.files[].path | select(test("/pluscal/[^/]+\\.tla$"))] | if length == 1 then .[0] else empty end' "$manifest")"
+  [ -n "$swift_path" ] && [ -n "$pluscal_path" ] || fail "Canonical corpus module layout is invalid" "$manifest" "one Swift and one authored PlusCal module per fixture" "expected paths were absent or ambiguous" "No fixture export or TLC run started" "Repair the source canonical corpus exporter."
+  swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness --configuration "$fixture" "$input"
+  cp "$canonical_corpus/$swift_path" "$input/swift-lowered.tla"
+  cp "$canonical_corpus/$pluscal_path" "$input/pluscal-source.tla"
+  cp "$manifest" "$input/canonical-corpus-manifest.json"
+  mkdir "$input/imports"
+  while IFS= read -r import_path; do
+    cp "$canonical_corpus/$import_path" "$input/imports/$(basename "$import_path")"
+  done < <(jq -r --arg fixture "$fixture" '.cases[] | select(.id == $fixture) | .files[].path | select(test("/imports/[^/]+\\.tla$"))' "$manifest")
+  hashes="$({ for file in "$input"/swift-lowered.tla "$input"/swift.cfg "$input"/pluscal-source.tla "$input"/pluscal.cfg "$input"/canonical-corpus-manifest.json "$input"/imports/*.tla; do [ -f "$file" ] || continue; jq -n --arg name "${file#$input/}" --arg digest "$(shasum -a 256 "$file" | awk '{print $1}')" '{($name):$digest}'; done; } | jq -s add)"
+  jq -n --arg fixture "$fixture" --arg commit "$commit" --argjson hashes "$hashes" '{schema:"SwiftTLAPlusCalFixtureExportV1",fixtureID:$fixture,swiftTLACommit:$commit,inputSHA256:$hashes,source:"canonical-corpus"}' > "$input/metadata.json"
+}
 
 contract="$root/validation/pluscal-oracle.json"
 required_ids="$(jq -r '.requiredCases[].fixtureID' "$contract")"
@@ -145,7 +184,14 @@ if [ "$case_id" = all ]; then
   exit "$status"
 fi
 
-if run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
+if is_canonical_corpus_fixture "$case_id"; then
+  if stage_canonical_corpus_fixture "$case_id" > "$output/fixture-export.stdout" 2> "$output/fixture-export.stderr"; then
+    :
+  else
+    status=$?
+    fail "Canonical corpus staging failed" "fixture $case_id / canonical corpus" "the SHA-bound source export to stage successfully" "staging exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "No translator or TLC run started; retained source-artifact evidence is available." "Repair the source export or artifact retrieval, then dispatch one fresh hosted candidate run."
+  fi
+elif run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
   :
 else
   status=$?
