@@ -45,7 +45,9 @@ public struct VoteProofWitness {
 
             Algorithm("Voting") {
                 let votes = SharedVar("votes", initial: Function<Acceptor, SetExpr<Pair<Int, Value>>>.mapping { _ in SetExpr() })
+                votes
                 let maxBal = SharedVar("maxBal", initial: Function<Acceptor, Int>.mapping { _ in -1 })
+                maxBal
                 let values = SetExpr<Value>.literal(.v1, .v2)
                 let acceptors = SetExpr<Acceptor>.literal(.a1, .a2, .a3)
                 let quorums = SetExpr<SetExpr<Acceptor>>.literal(

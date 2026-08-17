@@ -21,14 +21,20 @@ public struct BoulangerWitness {
                 let num = SharedVar("num", initial: Function<Process, Int>.literal(
                     (.one, 0), (.two, 0)
                 ))
+                num
                 let flag = SharedVar("flag", initial: Function<Process, Bool>.literal(
                     (.one, false), (.two, false)
                 ))
+                flag
                 Each(Process.all, fairness: .weak) { selfID in
                     let unchecked = LocalVar("unchecked", initial: SetExpr<Process>())
+                    unchecked
                     let max = LocalVar("max", initial: 0)
+                    max
                     let nxt = LocalVar("nxt", initial: Process.one)
+                    nxt
                     let previous = LocalVar("previous", initial: -1)
+                    previous
 
                     Do(Label.ncs) { Skip() }
 
