@@ -24,10 +24,11 @@ if arguments.count == 4,
     let output = URL(fileURLWithPath: arguments[3])
     do {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
-        try Data(fixture.swiftConfiguration.utf8).write(
+        let configuration = try fixture.configurations()
+        try Data(configuration.swift.utf8).write(
             to: output.appendingPathComponent("swift.cfg"), options: .atomic
         )
-        try Data(fixture.plusCalConfiguration.utf8).write(
+        try Data(configuration.plusCal.utf8).write(
             to: output.appendingPathComponent("pluscal.cfg"), options: .atomic
         )
     } catch {
@@ -40,13 +41,14 @@ guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: argu
     fputs("Usage: pluscal-oracle-harness <fixture-id> <fresh-output-directory> <full-swifttla-sha>\n", stderr)
     exit(2)
 }
-let output = URL(fileURLWithPath: arguments[2])
+    let output = URL(fileURLWithPath: arguments[2])
 do {
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
     let bundle = try fixture.specification().tlaBundle
     let direct = bundle.root.tla
-    let swiftConfiguration = fixture.swiftConfiguration
-    let plusCalConfiguration = fixture.plusCalConfiguration
+    let configuration = try fixture.configurations()
+    let swiftConfiguration = configuration.swift
+    let plusCalConfiguration = configuration.plusCal
     let plusCal = try fixture.plusCalModule()
     let imports = output.appendingPathComponent("imports")
     try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: false)
