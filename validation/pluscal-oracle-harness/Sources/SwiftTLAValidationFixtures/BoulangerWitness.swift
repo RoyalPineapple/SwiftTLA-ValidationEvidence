@@ -1,8 +1,6 @@
 import SwiftTLA
-import SwiftTLAMacros
 
 /// Bounded Boulangerie witness from Boulanger.tla and MCBoulanger.cfg.
-@TLAModel
 public struct BoulangerWitness {
     public enum Process: Int, FiniteDomainKey {
         case one = 1
@@ -17,20 +15,20 @@ public struct BoulangerWitness {
     }
 
     public static var spec: TLASpec {
-        #spec("Boulanger") {
+        TLASpec("Boulanger") {
             Extends("Integers")
             Algorithm("Boulanger") {
-                let num = SharedVar(initial: Function<Process, Int>.literal(
+                let num = SharedVar("num", initial: Function<Process, Int>.literal(
                     (.one, 0), (.two, 0)
                 ))
-                let flag = SharedVar(initial: Function<Process, Bool>.literal(
+                let flag = SharedVar("flag", initial: Function<Process, Bool>.literal(
                     (.one, false), (.two, false)
                 ))
                 Each(Process.all, fairness: .weak) { selfID in
-                    let unchecked = LocalVar(initial: SetExpr<Process>())
-                    let max = LocalVar(initial: 0)
-                    let nxt = LocalVar(initial: Process.one)
-                    let previous = LocalVar(initial: -1)
+                    let unchecked = LocalVar("unchecked", initial: SetExpr<Process>())
+                    let max = LocalVar("max", initial: 0)
+                    let nxt = LocalVar("nxt", initial: Process.one)
+                    let previous = LocalVar("previous", initial: -1)
 
                     Do(Label.ncs) { Skip() }
 

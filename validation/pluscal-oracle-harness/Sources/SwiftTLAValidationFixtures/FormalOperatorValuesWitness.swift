@@ -1,7 +1,5 @@
 import SwiftTLA
-import SwiftTLAMacros
 
-@TLAModel
 public struct FormalOperatorValuesWitness {
     public enum Worker: String, CaseIterable, FiniteDomainKey {
         case left
@@ -14,9 +12,9 @@ public struct FormalOperatorValuesWitness {
     }
 
     public static var spec: TLASpec {
-        #spec("FormalOperatorValuesWitness") {
+        TLASpec("FormalOperatorValuesWitness") {
             Algorithm("FormalOperatorValuesWitness") {
-                let counters = SharedVar(initial: Function<Worker, Int>.literal(
+                let counters = SharedVar("counters", initial: Function<Worker, Int>.literal(
                     (.left, 0),
                     (.right, 0)
                 ))

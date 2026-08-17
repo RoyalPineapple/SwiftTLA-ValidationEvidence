@@ -9,9 +9,7 @@ let package = Package(
         .target(
             name: "SwiftTLAValidationFixtures",
             dependencies: [
-                .product(name: "SwiftTLA", package: "SwiftTLA"),
-                .product(name: "SwiftTLAMacros", package: "SwiftTLA"),
-                .product(name: "UpstreamParity", package: "SwiftTLA")
+                .product(name: "SwiftTLA", package: "SwiftTLA")
             ]
         ),
         .executableTarget(
