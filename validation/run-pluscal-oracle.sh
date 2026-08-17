@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus=
 fixture_export_timeout_seconds=180
-fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
 tlc_timeout_seconds=90
 timeout_exit=124
