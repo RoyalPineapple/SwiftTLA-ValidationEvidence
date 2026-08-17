@@ -1,13 +1,11 @@
 import SwiftTLA
-import SwiftTLAMacros
 
-@TLAModel
 public struct SimultaneousAssignmentWitness {
     public static var spec: TLASpec {
-        #spec("SimultaneousAssignmentWitness") {
+        TLASpec("SimultaneousAssignmentWitness") {
             Algorithm("SimultaneousAssignmentWitness") {
-                let left = SharedVar(initial: 1)
-                let right = SharedVar(initial: 2)
+                let left = SharedVar("left", initial: 1)
+                let right = SharedVar("right", initial: 2)
 
                 Do("swap") {
                     Assign(left, to: right)

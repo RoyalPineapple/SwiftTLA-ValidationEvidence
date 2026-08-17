@@ -1,12 +1,10 @@
 import SwiftTLA
-import SwiftTLAMacros
 
-@TLAModel
 public struct ScopeBindingSubstitutionWitness {
     public static var spec: TLASpec {
-        #spec("ScopeBindingSubstitutionWitness") {
+        TLASpec("ScopeBindingSubstitutionWitness") {
             Algorithm("ScopeBindingSubstitutionWitness") {
-                let total = SharedVar(initial: 0)
+                let total = SharedVar("total", initial: 0)
                 let commit = Macro { (destination: MacroParameter<Int>, value: MacroParameter<Int>) in
                     Assign(destination, to: value.expr)
                 }

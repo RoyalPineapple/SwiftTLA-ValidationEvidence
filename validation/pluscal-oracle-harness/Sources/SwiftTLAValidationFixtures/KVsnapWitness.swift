@@ -1,8 +1,6 @@
 import SwiftTLA
-import SwiftTLAMacros
 
 /// Bounded KVsnap witness from KVsnap.tla and MCKVsnap.cfg.
-@TLAModel
 public struct KVsnapWitness {
     public enum Key: String, FiniteDomainKey {
         case k1, k2
@@ -70,7 +68,7 @@ public struct KVsnapWitness {
     private enum Step: String, PlusCalLabel { case start = "START", read = "READ", update = "UPDATE", commit = "COMMIT" }
 
     public static var spec: TLASpec {
-        #spec("KVsnap") {
+        TLASpec("KVsnap") {
             Extends("Integers, Sequences, FiniteSets")
             Import(KeyValueStoreUtil.module)
             Constant("k1", Key.k1)
@@ -92,14 +90,14 @@ public struct KVsnapWitness {
                 body: Function<Key, Value>.mapping { _ in Value.second(Expr<NoValue>(.noVal)) }.raw
             )
             Algorithm("KVsnap") {
-                let store: SharedVariable<Function<Key, Value>> = SharedVar(initial: FormalCall("InitialState"))
-                let tx = SharedVar(initial: SetExpr<Transaction>())
-                let missed = SharedVar(initial: Function<Transaction, SetExpr<Key>>.mapping { _ in SetExpr<Key>() })
+                let store: SharedVariable<Function<Key, Value>> = SharedVar("store", initial: FormalCall("InitialState"))
+                let tx = SharedVar("tx", initial: SetExpr<Transaction>())
+                let missed = SharedVar("missed", initial: Function<Transaction, SetExpr<Key>>.mapping { _ in SetExpr<Key>() })
                 Each(Transaction.all, fairness: .weak) { selfID in
-                    let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar(initial: FormalCall("InitialState"))
-                    let readKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
-                    let writeKeys: LocalVariable<SetExpr<Key>> = LocalVar(initial: SetExpr<Key>())
-                    let ops: LocalVariable<TupleExpr<Record<OperationSchema>>> = LocalVar(initial: TupleExpr<Record<OperationSchema>>())
+                    let snapshotStore: LocalVariable<Function<Key, Value>> = LocalVar("snapshotStore", initial: FormalCall("InitialState"))
+                    let readKeys: LocalVariable<SetExpr<Key>> = LocalVar("readKeys", initial: SetExpr<Key>())
+                    let writeKeys: LocalVariable<SetExpr<Key>> = LocalVar("writeKeys", initial: SetExpr<Key>())
+                    let ops: LocalVariable<TupleExpr<Record<OperationSchema>>> = LocalVar("ops", initial: TupleExpr<Record<OperationSchema>>())
                     Do(Step.start) {
                         Assign(tx, to: tx.inserting(selfID)); Assign(snapshotStore, to: store)
                         With(NonEmptySubsets(of: SetExpr<Key>.literal(.k1, .k2))) { reads in
