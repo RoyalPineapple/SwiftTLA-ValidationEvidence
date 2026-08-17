@@ -51,7 +51,7 @@ jobs:
             --output "$EVIDENCE_ROOT"
       - name: Upload retained candidate evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pluscal-oracle-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pluscal-oracle/
