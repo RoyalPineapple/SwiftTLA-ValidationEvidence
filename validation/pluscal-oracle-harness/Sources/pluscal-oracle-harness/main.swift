@@ -18,6 +18,24 @@ if arguments.count == 2, arguments[1] == "--list" {
     print(OracleFixtureRegistry.fixtures.map(\.id).joined(separator: "\n"))
     exit(0)
 }
+if arguments.count == 4,
+   arguments[1] == "--configuration",
+   let fixture = OracleFixtureRegistry.fixture(id: arguments[2]) {
+    let output = URL(fileURLWithPath: arguments[3])
+    do {
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+        try Data(fixture.swiftConfiguration.utf8).write(
+            to: output.appendingPathComponent("swift.cfg"), options: .atomic
+        )
+        try Data(fixture.plusCalConfiguration.utf8).write(
+            to: output.appendingPathComponent("pluscal.cfg"), options: .atomic
+        )
+    } catch {
+        fputs("fixture configuration export failed: \(error)\n", stderr)
+        exit(2)
+    }
+    exit(0)
+}
 guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: arguments[1]) else {
     fputs("Usage: pluscal-oracle-harness <fixture-id> <fresh-output-directory> <full-swifttla-sha>\n", stderr)
     exit(2)
@@ -25,7 +43,7 @@ guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: argu
 let output = URL(fileURLWithPath: arguments[2])
 do {
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
-    let bundle = fixture.specification().tlaBundle
+    let bundle = try fixture.specification().tlaBundle
     let direct = bundle.root.tla
     let swiftConfiguration = fixture.swiftConfiguration
     let plusCalConfiguration = fixture.plusCalConfiguration
