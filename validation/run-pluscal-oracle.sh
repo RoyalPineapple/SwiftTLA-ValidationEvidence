@@ -159,7 +159,7 @@ if [ "$case_id" = all ]; then
   status=0
   while IFS= read -r id; do
     [ -n "$id" ] || continue
-    "$0" --case "$id" --checkout "$checkout" --commit "$commit" --requested-ref "$requested_ref" --mode candidate --validation-commit "$validation_commit" --output "$output/$id" || status=$?
+    "$0" --case "$id" --checkout "$checkout" --commit "$commit" --requested-ref "$requested_ref" --mode candidate --validation-commit "$validation_commit" --output "$output/$id" --canonical-corpus "$canonical_corpus" || status=$?
   done <<< "$ids"
   fixture_results="$({ while IFS= read -r id; do
     [ -n "$id" ] || continue

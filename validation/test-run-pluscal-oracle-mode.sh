@@ -12,6 +12,7 @@ grep -Fq 'run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.s
 grep -Fq 'is_canonical_corpus_fixture()' "$runner"
 grep -Fq 'stage_canonical_corpus_fixture()' "$runner"
 grep -Fq '.swiftTLASHA == $commit' "$runner"
+grep -Fq ' --output "$output/$id" --canonical-corpus "$canonical_corpus" || status=$?' "$runner"
 grep -Fq 'stage_voteproof_tlaps_modules()' "$runner"
 grep -Fq 'if [ "$case_id" = voteproof-upstream-port ]; then stage_voteproof_tlaps_modules; fi' "$runner"
 grep -Fq 'external-module-provenance.json' "$runner"
