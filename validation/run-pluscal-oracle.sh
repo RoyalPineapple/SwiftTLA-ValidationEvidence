@@ -43,6 +43,38 @@ timeout_failure() {
   local operation="$1" fixture="$2" limit_seconds="$3" stdout="$4" stderr="$5"
   fail "$operation timed out" "fixture $fixture / $operation" "the bounded fixture to finish within $limit_seconds seconds" "fixture $fixture exceeded the $limit_seconds-second limit; inspect $stdout and $stderr" "The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made." "Inspect the retained output, repair the named operation or fixture, then dispatch one fresh hosted candidate run."
 }
+external_module_bundle_json='null'
+stage_voteproof_tlaps_modules() {
+  local manifest="$root/validation/external-modules/voteproof-tlaps.json" imports name path expected actual source_url provenance_digest module_hashes
+  imports="$output/input/imports"
+  [ -f "$manifest" ] || fail "VoteProof external module manifest is missing" "$manifest" "the pinned TLAPS module bundle" "manifest was not found" "No TLC run started" "Restore the manifest-pinned upstream module inputs."
+  jq -e '
+    .schema == "SwiftTLAExternalModuleBundleV1"
+      and .fixtureID == "voteproof-upstream-port"
+      and ([.modules[] | .name] | sort == ["FiniteSetTheorems", "Folds", "Functions", "NaturalsInduction", "TLAPS", "WellFoundedInduction"])
+      and ([.modules[] | select(
+        (.path | test("^(library|modules)/[A-Za-z]+\\.tla$"))
+          and (.sha256 | test("^[0-9a-f]{64}$"))
+          and (.source.githubRepository | IN("tlaplus/tlapm", "tlaplus/CommunityModules"))
+          and (.source.commit | test("^[0-9a-f]{40}$"))
+      )] | length == 6)
+  ' "$manifest" >/dev/null || fail "VoteProof external module manifest is invalid" "$manifest" "the exact pinned TLAPS dependency closure" "manifest schema, source pin, or module set differs" "No TLC run started" "Repair the manifest with the authoritative TLAPS module closure."
+  mkdir -p "$imports"
+  cp "$manifest" "$output/input/external-module-provenance.json"
+  while IFS=$'\t' read -r name path expected github_repository source_commit; do
+    source_url="https://raw.githubusercontent.com/$github_repository/$source_commit/$path"
+    if ! curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --silent --show-error "$source_url" -o "$imports/$name.tla"; then
+      fail "VoteProof external module fetch failed" "fixture voteproof-upstream-port / $name" "the pinned TLAPS source at $source_url" "curl could not retrieve the pinned module" "No TLC run started; the manifest and partial inputs were retained." "Restore the pinned upstream source or retry a fresh hosted candidate run."
+    fi
+    actual="$(shasum -a 256 "$imports/$name.tla" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || fail "VoteProof external module digest differs" "fixture voteproof-upstream-port / $name" "$expected" "$actual" "No TLC run started; the fetched input and provenance were retained." "Update only after reviewing a new authoritative TLAPS pin."
+  done < <(jq -r '.modules[] | [.name, .path, .sha256, .source.githubRepository, .source.commit] | @tsv' "$manifest")
+  provenance_digest="$(shasum -a 256 "$output/input/external-module-provenance.json" | awk '{print $1}')"
+  module_hashes="$({ for module in "$imports"/*.tla; do jq -n --arg name "imports/$(basename "$module")" --arg digest "$(shasum -a 256 "$module" | awk '{print $1}')" '{($name):$digest}'; done; } | jq -s add)"
+  jq --arg provenanceDigest "$provenance_digest" --argjson moduleHashes "$module_hashes" '.inputSHA256 += $moduleHashes + {"external-module-provenance.json": $provenanceDigest}' "$output/input/metadata.json" > "$output/input/metadata.next.json"
+  mv "$output/input/metadata.next.json" "$output/input/metadata.json"
+  external_module_bundle_json="$(jq -c '. + {manifestSHA256: $manifestSHA256}' --arg manifestSHA256 "$provenance_digest" "$manifest")"
+}
 [ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] || exit 2
 if [ "$case_id" = kvsnap-upstream-port ]; then tlc_timeout_seconds=300; fi
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
@@ -122,7 +154,8 @@ else
   fi
   fail "Fixture export failed" "fixture $case_id / fixture export" "a renderable registered fixture" "fixture export exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "Fixture export output was retained; no TLC run started; no admission claim was made." "Repair the fixture boundary, then dispatch one fresh hosted candidate run."
 fi
-jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal}' > "$output/case.json"
+if [ "$case_id" = voteproof-upstream-port ]; then stage_voteproof_tlaps_modules; fi
+jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" --argjson externalModuleBundle "$external_module_bundle_json" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal,externalModuleBundle:$externalModuleBundle}' > "$output/case.json"
 jq -n --arg id "$case_id" --arg commit "$commit" '{runner:{caseID:$id,engine:"pluscal-oracle",runID:$commit},swift:{caseID:$id,engine:"swift",runID:$commit},tlc:{caseID:$id,engine:"tlc",runID:$commit}}' > "$output/correlations.json"
 printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":false,"swiftTLC":false,"pluscalTLC":false}\n' > "$output/raw-artifacts.json"
 mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
@@ -137,7 +170,7 @@ copy_imports() { local source="$1/imports" destination="$2"; [ -d "$source" ] ||
 pluscal_module="$(prepare_module "$output/input/pluscal-source.tla" "$output/translated")"
 copy_imports "$output/input" "$output/translated"
 cp "$output/input/pluscal.cfg" "$output/translated/pluscal.cfg"
-jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg swiftTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir swift/states -dump dot,actionlabels swift/graph.dot -config swift/swift.cfg swift/<module>.tla" --arg pluscalTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir pluscal/states -dump dot,actionlabels pluscal/graph.dot -config pluscal/pluscal.cfg pluscal/<module>.tla" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:{swift:$swiftTLC,pluscal:$pluscalTLC},timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
+jq -n --arg swiftExport "swift run --package-path $root/validation/pluscal-oracle-harness pluscal-oracle-harness $case_id $output/input $commit" --arg pluscal "java -cp $jar pcal.trans -unixEOL $output/translated/$pluscal_module.tla" --arg swiftTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir swift/states -dump dot,actionlabels swift/graph.dot -config swift/swift.cfg swift/<module>.tla" --arg pluscalTLC "java -cp $jar tlc2.TLC -workers 1 -fp 1 -deadlock -metadir pluscal/states -dump dot,actionlabels pluscal/graph.dot -config pluscal/pluscal.cfg pluscal/<module>.tla" --argjson externalModuleBundle "$external_module_bundle_json" --argjson fixtureExportTimeoutSeconds "$fixture_export_timeout_seconds" --argjson pluscalTranslationTimeoutSeconds "$pluscal_translation_timeout_seconds" --argjson tlcTimeoutSeconds "$tlc_timeout_seconds" '{fixtureExport:$swiftExport,pluscalTranslator:$pluscal,tlc:{swift:$swiftTLC,pluscal:$pluscalTLC},externalModuleBundle:$externalModuleBundle,timeLimitsSeconds:{fixtureExport:$fixtureExportTimeoutSeconds,pluscalTranslation:$pluscalTranslationTimeoutSeconds,tlc:$tlcTimeoutSeconds}}' > "$output/commands.json"
 if run_bounded "$pluscal_translation_timeout_seconds" "$output/translation.stdout" "$output/translation.stderr" java -cp "$jar" pcal.trans -unixEOL "$output/translated/$pluscal_module.tla"; then
   :
 else
