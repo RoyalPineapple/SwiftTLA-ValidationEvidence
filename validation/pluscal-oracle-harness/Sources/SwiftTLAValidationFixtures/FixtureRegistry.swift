@@ -34,7 +34,7 @@ public struct OracleFixture: Sendable {
     }
 
     public func plusCalModule() throws -> String {
-        let modules = try specification().renderAuthoredPlusCalModules()
+        let modules = try specification().compile().renderedAuthoredPlusCalModules()
         guard modules.count == 1 else {
             throw OracleFixtureDiagnostic(
                 failedConcept: "PlusCal oracle fixture source",
