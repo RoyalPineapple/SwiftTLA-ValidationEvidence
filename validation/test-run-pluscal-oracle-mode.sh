@@ -23,6 +23,7 @@ grep -Fq 'cp "$canonical_corpus/$pluscal_config_path" "$input/pluscal.cfg"' "$ru
 
 fixtures="$root/validation/pluscal-oracle-harness/Sources/SwiftTLAValidationFixtures"
 registry="$fixtures/FixtureRegistry.swift"
+exporter="$root/validation/pluscal-oracle-harness/Sources/pluscal-oracle-harness/main.swift"
 [ ! -e "$fixtures/BoulangerWitness.swift" ]
 [ ! -e "$fixtures/KVsnapWitness.swift" ]
 [ ! -e "$fixtures/VoteProofWitness.swift" ]
@@ -32,6 +33,8 @@ grep -Fq 'id: "voteproof-upstream-port"' "$registry"
 ! grep -Fq 'CONSTANT Value =' "$registry"
 grep -Fq 'specification().compile().renderedAuthoredPlusCalModules()' "$registry"
 ! grep -Fq 'specification().renderAuthoredPlusCalModules()' "$registry"
+grep -Fq 'specification().compile().renderedTLAModuleBundle()' "$exporter"
+! grep -Fq 'specification().tlaBundle' "$exporter"
 
 perl -0ne '
   while (/\blet\s+(\w+)(?:\s*:\s*[^=]+)?\s*=\s*(?:SharedVar|LocalVar)\b/g) {
