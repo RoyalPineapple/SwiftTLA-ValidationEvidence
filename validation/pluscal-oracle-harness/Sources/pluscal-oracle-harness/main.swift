@@ -44,7 +44,7 @@ guard arguments.count == 4, let fixture = OracleFixtureRegistry.fixture(id: argu
     let output = URL(fileURLWithPath: arguments[2])
 do {
     try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
-    let bundle = try fixture.specification().tlaBundle
+    let bundle = try fixture.specification().compile().renderedTLAModuleBundle()
     let direct = bundle.root.tla
     let configuration = try fixture.configurations()
     let swiftConfiguration = configuration.swift
