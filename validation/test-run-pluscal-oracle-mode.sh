@@ -8,7 +8,7 @@ grep -Fq ' --mode candidate --validation-commit ' "$runner"
 grep -Fq 'if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi' "$runner"
 grep -Fq 'fixture_registry_timeout_seconds=600' "$runner"
 grep -Fq 'run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout"' "$runner"
-[ "$(grep -Fc 'swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness"' "$runner")" -eq 3 ]
+[ "$(grep -Fc 'swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness"' "$runner")" -eq 2 ]
 grep -Fq 'is_canonical_corpus_fixture()' "$runner"
 grep -Fq 'stage_canonical_corpus_fixture()' "$runner"
 grep -Fq '.swiftTLASHA == $commit' "$runner"
@@ -30,6 +30,8 @@ grep -Fq 'id: "boulanger-upstream-port"' "$registry"
 grep -Fq 'id: "kvsnap-upstream-port"' "$registry"
 grep -Fq 'id: "voteproof-upstream-port"' "$registry"
 ! grep -Fq 'CONSTANT Value =' "$registry"
+grep -Fq 'specification().compile().renderedAuthoredPlusCalModules()' "$registry"
+! grep -Fq 'specification().renderAuthoredPlusCalModules()' "$registry"
 
 perl -0ne '
   while (/\blet\s+(\w+)(?:\s*:\s*[^=]+)?\s*=\s*(?:SharedVar|LocalVar)\b/g) {
