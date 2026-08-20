@@ -10,6 +10,7 @@ grep -Fq 'fixture_registry_timeout_seconds=600' "$runner"
 grep -Fq 'run_bounded "$fixture_registry_timeout_seconds" "$suite/fixture-list.stdout"' "$runner"
 [ "$(grep -Fc 'swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness"' "$runner")" -eq 2 ]
 grep -Fq 'is_canonical_corpus_fixture()' "$runner"
+grep -Fq '(.sourceOwnedCases // []) | index($fixture) != null' "$runner"
 grep -Fq 'stage_canonical_corpus_fixture()' "$runner"
 grep -Fq '.swiftTLASHA == $commit' "$runner"
 grep -Fq '"$child_runner" --case "$id"' "$runner"

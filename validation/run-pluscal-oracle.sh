@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus=
 fixture_export_timeout_seconds=180
-fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
 tlc_timeout_seconds=90
 timeout_exit=124
@@ -53,10 +52,9 @@ if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-po
 mkdir -p "$output"
 
 is_canonical_corpus_fixture() {
-  case "$1" in
-    boulanger-upstream-port|kvsnap-upstream-port|voteproof-upstream-port) return 0 ;;
-    *) return 1 ;;
-  esac
+  jq -e --arg fixture "$1" '
+    (.sourceOwnedCases // []) | index($fixture) != null
+  ' "$root/validation/pluscal-oracle.json" >/dev/null
 }
 
 stage_canonical_corpus_fixture() {
