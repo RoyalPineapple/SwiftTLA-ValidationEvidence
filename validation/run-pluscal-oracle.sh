@@ -64,7 +64,7 @@ stage_canonical_corpus_fixture() {
   manifest="$canonical_corpus/manifest.json"
   [ -f "$manifest" ] || fail "Canonical corpus artifact is missing" "$manifest" "the SHA-bound SwiftTLA canonical corpus manifest" "manifest was not found" "No fixture export or TLC run started" "Run the source canonical-corpus export for this exact SwiftTLA SHA."
   jq -e --arg commit "$commit" --arg fixture "$fixture" '
-    .schema == "CanonicalCorpusExportV1"
+    .schema == "CanonicalCorpusExport"
       and .swiftTLASHA == $commit
       and ([.cases[] | select(.id == $fixture)] | length == 1)
   ' "$manifest" >/dev/null || fail "Canonical corpus artifact does not match candidate" "$manifest" "schema, candidate SHA, and fixture ID to match" "manifest identity check failed" "No fixture export or TLC run started" "Use the retained source artifact for this exact candidate SHA."
