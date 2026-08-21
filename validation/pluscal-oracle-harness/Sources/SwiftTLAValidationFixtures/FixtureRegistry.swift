@@ -34,17 +34,7 @@ public struct OracleFixture: Sendable {
     }
 
     public func plusCalModule() throws -> String {
-        let modules = try specification().compile().renderedAuthoredPlusCalModules()
-        guard modules.count == 1 else {
-            throw OracleFixtureDiagnostic(
-                failedConcept: "PlusCal oracle fixture source",
-                fixtureID: id,
-                expected: "exactly one authored Algorithm module",
-                actual: "\(modules.count) authored Algorithm modules",
-                nextSafeAction: "Give this fixture one Algorithm, or split independent Algorithms into separate fixtures."
-            )
-        }
-        return modules[0]
+        try specification().compile().renderedPlusCalBundle().root.tla
     }
 
     public func configurations() throws -> (swift: String, plusCal: String) {
