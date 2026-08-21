@@ -4,72 +4,8 @@
     "engine": "tlc",
     "runID": "ed8be2ef-0357-4245-b8fa-7ced1bc0c650"
   },
-  "edges": [
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:10]--48436e7874-->state:[6872=integer:11]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:11]--48436e7874-->state:[6872=integer:12]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:12]--48436e7874-->state:[6872=integer:1]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:1]--48436e7874-->state:[6872=integer:2]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:2]--48436e7874-->state:[6872=integer:3]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:3]--48436e7874-->state:[6872=integer:4]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:4]--48436e7874-->state:[6872=integer:5]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:5]--48436e7874-->state:[6872=integer:6]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:6]--48436e7874-->state:[6872=integer:7]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:7]--48436e7874-->state:[6872=integer:8]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:8]--48436e7874-->state:[6872=integer:9]"
-    },
-    {
-      "count": 1,
-      "encoding": "edge:state:[6872=integer:9]--48436e7874-->state:[6872=integer:10]"
-    }
-  ],
   "errors": [],
   "format": "canonical-run-evidence",
-  "initialStates": [
-    "state:[6872=integer:10]",
-    "state:[6872=integer:11]",
-    "state:[6872=integer:12]",
-    "state:[6872=integer:1]",
-    "state:[6872=integer:2]",
-    "state:[6872=integer:3]",
-    "state:[6872=integer:4]",
-    "state:[6872=integer:5]",
-    "state:[6872=integer:6]",
-    "state:[6872=integer:7]",
-    "state:[6872=integer:8]",
-    "state:[6872=integer:9]"
-  ],
   "observableActions": [
     "HCnxt"
   ],
@@ -84,19 +20,15 @@
     "symmetrySchemaIdentity": "none"
   },
   "schema": "exactFiniteTLCGraph",
-  "states": [
-    "state:[6872=integer:10]",
-    "state:[6872=integer:11]",
-    "state:[6872=integer:12]",
-    "state:[6872=integer:1]",
-    "state:[6872=integer:2]",
-    "state:[6872=integer:3]",
-    "state:[6872=integer:4]",
-    "state:[6872=integer:5]",
-    "state:[6872=integer:6]",
-    "state:[6872=integer:7]",
-    "state:[6872=integer:8]",
-    "state:[6872=integer:9]"
-  ],
-  "traces": []
+  "traces": [],
+  "graph": {
+    "digest": "7f62b1e39ad834097e7f229a88ca166fbb6737c3ddb5260cf5fbeaf8b2effbd6",
+    "chunks": [
+      {
+        "file": "000000.jsonl",
+        "digest": "b9f0950a9976af778c14f8b4d0a44b21d0367233dc42cc528d3f7b7a8a8c0fd9",
+        "recordCount": 36
+      }
+    ]
+  }
 }
