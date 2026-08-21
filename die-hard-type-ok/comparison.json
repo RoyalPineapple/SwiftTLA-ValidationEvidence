@@ -1,11 +1,45 @@
 {
-  "conformant" : true,
-  "correlation" : {
-    "caseID" : "die-hard-type-ok",
-    "engine" : "runner",
-    "runID" : "7f5dbb0e-f8a5-4b40-8b8e-ef7b5450282c"
+  "actualReceipt": {
+    "compiledModelIdentity": "retained-baseline",
+    "configurationIdentity": "d653a6add3e94b67cd6ccdc7e7473ab0a381df7931ecaf3c8760fad4bcabdc7d",
+    "edgeCount": 96,
+    "edgesDigest": "3bf8a4aede52585ea862417a983ff3cb5181013830964003502f3bf848ce10c3",
+    "explorationStatus": "complete",
+    "format": "canonical-graph-receipt",
+    "graphChunkDigests": [
+      "b5f2855267d402a7c5b59ae5694e6035a5bdc7783e746b67dc89027fac7530c2"
+    ],
+    "graphDigest": "df788bcdb37f6871f996c2af6ae9e8844f308fe1e85409e5be4105edefbc36f5",
+    "initialStateCount": 1,
+    "initialStatesDigest": "259958d56e4c72c016715465e92241505ca9ddf6ac21774601fb008de079ece4",
+    "maximumStateLimit": 100000,
+    "stateCount": 16,
+    "statesDigest": "a5ab87aa3ecf478a42bfc24e400c1f04a80537d2d7f9ea820bdb65693cff5141",
+    "symmetrySchemaIdentity": "none"
   },
-  "differences" : [
-
-  ]
+  "conformant": true,
+  "correlation": {
+    "caseID": "die-hard-type-ok",
+    "engine": "runner",
+    "runID": "7f5dbb0e-f8a5-4b40-8b8e-ef7b5450282c"
+  },
+  "differences": [],
+  "expectedReceipt": {
+    "compiledModelIdentity": "retained-baseline",
+    "configurationIdentity": "d653a6add3e94b67cd6ccdc7e7473ab0a381df7931ecaf3c8760fad4bcabdc7d",
+    "edgeCount": 96,
+    "edgesDigest": "3bf8a4aede52585ea862417a983ff3cb5181013830964003502f3bf848ce10c3",
+    "explorationStatus": "complete",
+    "format": "canonical-graph-receipt",
+    "graphChunkDigests": [
+      "b5f2855267d402a7c5b59ae5694e6035a5bdc7783e746b67dc89027fac7530c2"
+    ],
+    "graphDigest": "df788bcdb37f6871f996c2af6ae9e8844f308fe1e85409e5be4105edefbc36f5",
+    "initialStateCount": 1,
+    "initialStatesDigest": "259958d56e4c72c016715465e92241505ca9ddf6ac21774601fb008de079ece4",
+    "maximumStateLimit": 100000,
+    "stateCount": 16,
+    "statesDigest": "a5ab87aa3ecf478a42bfc24e400c1f04a80537d2d7f9ea820bdb65693cff5141",
+    "symmetrySchemaIdentity": "none"
+  }
 }
