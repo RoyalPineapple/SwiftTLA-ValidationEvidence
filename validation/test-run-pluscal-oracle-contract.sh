@@ -12,7 +12,7 @@ output="$temporary/evidence"
 child="$temporary/child-runner.sh"
 log="$temporary/children.tsv"
 mkdir -p "$corpus"
-printf '{"schema":"CanonicalCorpusExportV1","swiftTLASHA":"%s","cases":[]}' "$commit" > "$corpus/manifest.json"
+printf '{"schema":"CanonicalCorpusExport","swiftTLASHA":"%s","cases":[]}' "$commit" > "$corpus/manifest.json"
 
 cat > "$child" <<'CHILD'
 #!/usr/bin/env bash
