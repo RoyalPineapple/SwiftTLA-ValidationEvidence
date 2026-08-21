@@ -2,7 +2,7 @@
 
 This repository owns the external PlusCal translator/TLC lifecycle. The workflow accepts a SwiftTLA branch, tag, or SHA, records the resolved immutable SHA, downloads that exact revision's canonical corpus artifact, and retains per-fixture input, TLC, and canonical comparison evidence as a GitHub Actions artifact. Upstream corpus models are authored only in SwiftTLA; this repository stages their verified bundles unchanged. The small harness contains only focused regression witnesses that have no corpus model.
 
-Candidate mode is pre-merge evidence: it accepts a branch, tag, or SHA and never makes an admission claim. Admission is post-merge evidence: it accepts `main` only, resolves and retains that exact immutable SwiftTLA SHA, and fails closed unless the discovered fixtures are exactly the stable contract in `validation/pluscal-oracle.json`. No per-merge mapping edit is required.
+Candidate mode is pre-merge evidence: it accepts a branch, tag, or SHA and never makes an admission claim. Admission is post-merge evidence: it accepts an immutable SwiftTLA SHA, verifies that SHA is `main` when the workflow starts, and retains it with the evidence. It fails closed unless the discovered fixtures are exactly the stable contract in `validation/pluscal-oracle.json`.
 
 `--case all` always writes `pluscal-differential-audit/result.json`. It runs the declared contract directly, passes the immutable checkout, SHA, configurations, and corpus path to every child, and records missing or unexpected fixtures as well as per-fixture graph results. The audit cannot pass by silently checking a smaller corpus.
 

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       swifttla_ref:
-        description: SwiftTLA branch, tag, or immutable SHA (admission accepts main only)
+        description: SwiftTLA branch, tag, or immutable SHA
         required: true
         type: string
       admission_mode:
@@ -35,6 +35,13 @@ jobs:
           commit="$(git -C SwiftTLA rev-parse HEAD)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Verify admission revision is main
+        if: ${{ inputs.admission_mode == 'admission' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          main_commit="$(gh api repos/RoyalPineapple/SwiftTLA/commits/main --jq .sha)"
+          [ "$main_commit" = "${{ steps.candidate.outputs.commit }}" ]
       - name: Download source-owned canonical corpus
         env:
           GH_TOKEN: ${{ github.token }}
