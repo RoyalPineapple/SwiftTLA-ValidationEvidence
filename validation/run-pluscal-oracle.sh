@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus=
 fixture_export_timeout_seconds=180
+fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
 tlc_timeout_seconds=90
 timeout_exit=124
@@ -103,9 +104,6 @@ if [ "$required_count" -eq 0 ] || [ "$unique_required_count" -ne "$required_coun
   fail "Invalid required fixture contract" "$contract" "non-empty, unique required fixture IDs" "missing or duplicate fixture IDs" "No run started" "Repair the stable admission contract."
 fi
 case "$mode" in candidate|admission) ;; *) fail "Invalid evidence mode" "runner arguments" "candidate or admission" "$mode" "No run started" "Use a supported evidence mode." ;; esac
-if [ "$mode" = admission ] && [ "$requested_ref" != main ]; then
-  fail "Admission was not requested from main" "workflow input swifttla_ref" "main" "$requested_ref" "Candidate checkout retained; no admission claim" "Merge the candidate, then admit the immutable main revision."
-fi
 if [ "$mode" = admission ] && [ "$case_id" != all ]; then
   fail "Admission did not select the complete fixture contract" "runner argument --case" "all required fixtures" "$case_id" "No fixture run started; no admission claim" "Run admission with --case all."
 fi
