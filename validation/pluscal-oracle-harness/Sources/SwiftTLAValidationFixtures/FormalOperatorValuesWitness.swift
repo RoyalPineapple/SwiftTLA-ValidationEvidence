@@ -9,6 +9,16 @@ public struct FormalOperatorValuesWitness {
         public static let formalTypeIdentity = FormalTypeIdentity(rawValue: "k2.scoped-formal-lambda-tlc-witness.worker")
 
         public var tlaValue: TLAValue { .string(rawValue) }
+        public static var defaultValue: Self { .left }
+
+        public init?(formalValue: TLAValue) {
+            guard case .string(let rawValue) = formalValue else { return nil }
+            self.init(rawValue: rawValue)
+        }
+    }
+
+    private enum Label: String, PlusCalLabel, CaseIterable {
+        case advance
     }
 
     public static var spec: TLASpec {
@@ -21,7 +31,7 @@ public struct FormalOperatorValuesWitness {
                 counters
 
                 Each(Worker.all) { worker in
-                    Do("advance") {
+                    Do(Label.advance) {
                         Assign(counters, to: counters.updating(worker, to: Expr<Int>(
                             StateExpr.operatorApplication(
                                 .lambda(FormalLambda(

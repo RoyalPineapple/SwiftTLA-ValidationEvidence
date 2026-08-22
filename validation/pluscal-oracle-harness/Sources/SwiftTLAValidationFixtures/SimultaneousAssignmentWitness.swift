@@ -1,6 +1,10 @@
 import SwiftTLA
 
 public struct SimultaneousAssignmentWitness {
+    private enum Label: String, PlusCalLabel, CaseIterable {
+        case swap
+    }
+
     public static var spec: TLASpec {
         TLASpec("SimultaneousAssignmentWitness") {
             Algorithm("SimultaneousAssignmentWitness") {
@@ -9,7 +13,7 @@ public struct SimultaneousAssignmentWitness {
                 let right = SharedVar("right", initial: 2)
                 right
 
-                Do("swap") {
+                Do(Label.swap) {
                     Assign(left, to: right)
                     Assign(right, to: left)
                 }

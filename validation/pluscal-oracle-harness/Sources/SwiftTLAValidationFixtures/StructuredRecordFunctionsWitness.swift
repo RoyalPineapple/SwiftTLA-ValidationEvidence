@@ -9,6 +9,16 @@ public struct StructuredRecordFunctionsWitness {
         public static let formalTypeIdentity = FormalTypeIdentity(rawValue: "k4.structured-tlc-witness.car")
 
         public var tlaValue: TLAValue { .string(rawValue) }
+        public static var defaultValue: Self { .left }
+
+        public init?(formalValue: TLAValue) {
+            guard case .string(let rawValue) = formalValue else { return nil }
+            self.init(rawValue: rawValue)
+        }
+    }
+
+    private enum Label: String, PlusCalLabel, CaseIterable {
+        case openDoor
     }
 
     public struct DoorFields {
@@ -38,7 +48,7 @@ public struct StructuredRecordFunctionsWitness {
                 doors
 
                 Each(Car.all) { car in
-                    Do("openDoor") {
+                    Do(Label.openDoor) {
                         When(doors[car][Door.open] == false)
                         Assign(doors, to: doors.updating(car) { door in
                             door.updating(Door.open, to: true)
