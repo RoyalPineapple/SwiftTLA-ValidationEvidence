@@ -1,6 +1,10 @@
 import SwiftTLA
 
 public struct ProcedureCallReturnWitness {
+    private enum Label: String, PlusCalLabel, CaseIterable {
+        case apply, start, done
+    }
+
     public static var spec: TLASpec {
         TLASpec("ProcedureCallReturnWitness") {
             Algorithm("ProcedureCallReturnWitness") {
@@ -10,14 +14,14 @@ public struct ProcedureCallReturnWitness {
                 Procedure("addOffset", parameters: Int.self) { value in
                     let offset = LocalVar("offset", initial: 2)
                     offset
-                    Do("apply") {
+                    Do(Label.apply) {
                         Assign(output, to: value.expr + offset.expr)
                         Return()
                     }
                 }
 
-                Do("start") { Call("addOffset", with: 5) }
-                Do("done") { Stop() }
+                Do(Label.start) { Call("addOffset", with: 5) }
+                Do(Label.done) { Stop() }
             }
         }
     }

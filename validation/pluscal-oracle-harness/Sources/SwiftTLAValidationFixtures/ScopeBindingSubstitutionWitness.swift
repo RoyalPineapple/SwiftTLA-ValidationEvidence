@@ -1,6 +1,10 @@
 import SwiftTLA
 
 public struct ScopeBindingSubstitutionWitness {
+    private enum Label: String, PlusCalLabel, CaseIterable {
+        case bind
+    }
+
     public static var spec: TLASpec {
         TLASpec("ScopeBindingSubstitutionWitness") {
             Algorithm("ScopeBindingSubstitutionWitness") {
@@ -10,7 +14,7 @@ public struct ScopeBindingSubstitutionWitness {
                     Assign(destination, to: value.expr)
                 }
 
-                Do("bind") {
+                Do(Label.bind) {
                     Let(1) { base in
                         With(SetExpr<Int>.literal(2)) { selected in
                             Choose(3...3) { chosen in
