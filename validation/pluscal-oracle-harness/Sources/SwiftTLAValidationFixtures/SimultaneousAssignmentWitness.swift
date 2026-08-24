@@ -1,7 +1,7 @@
 import SwiftTLA
 
 public struct SimultaneousAssignmentWitness {
-    private enum Label: String, PlusCalLabel, CaseIterable {
+    private enum Label: String, CaseIterable {
         case swap
     }
 

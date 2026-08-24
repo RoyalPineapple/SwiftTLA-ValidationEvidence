@@ -1,23 +1,15 @@
 import SwiftTLA
 
 public struct FormalOperatorValuesWitness {
-    public enum Worker: String, CaseIterable, FiniteDomainKey {
+    public enum Worker: String, CaseIterable, FiniteTLAValueDomain {
         case left
         case right
 
-        public static let formalDomain = allCases
-        public static let formalTypeIdentity = FormalTypeIdentity(rawValue: "k2.scoped-formal-lambda-tlc-witness.worker")
-
-        public var tlaValue: TLAValue { .string(rawValue) }
+        public static let finiteValues = allCases
         public static var defaultValue: Self { .left }
-
-        public init?(formalValue: TLAValue) {
-            guard case .string(let rawValue) = formalValue else { return nil }
-            self.init(rawValue: rawValue)
-        }
     }
 
-    private enum Label: String, PlusCalLabel, CaseIterable {
+    private enum Label: String, CaseIterable {
         case advance
     }
 
