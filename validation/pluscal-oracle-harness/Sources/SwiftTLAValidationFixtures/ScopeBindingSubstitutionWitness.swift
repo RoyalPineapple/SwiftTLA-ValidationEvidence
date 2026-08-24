@@ -1,7 +1,7 @@
 import SwiftTLA
 
 public struct ScopeBindingSubstitutionWitness {
-    private enum Label: String, PlusCalLabel, CaseIterable {
+    private enum Label: String, CaseIterable {
         case bind
     }
 
