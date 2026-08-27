@@ -7,9 +7,8 @@ public struct ScopeBindingSubstitutionWitness {
 
     public static var spec: TLASpec {
         TLASpec("ScopeBindingSubstitutionWitness") {
-            Algorithm("ScopeBindingSubstitutionWitness") {
-                let total = SharedVar("total", initial: 0)
-                total
+            Algorithm("ScopeBindingSubstitutionWitness", scoped: { scope in
+                let total = scope.sharedVar("total", initial: 0)
                 let commit = Macro { (destination: MacroParameter<Int>, value: MacroParameter<Int>) in
                     Assign(destination, to: value.expr)
                 }
@@ -23,7 +22,7 @@ public struct ScopeBindingSubstitutionWitness {
                         }
                     }
                 }
-            }
+            })
         }
     }
 }

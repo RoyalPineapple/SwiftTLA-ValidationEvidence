@@ -5,24 +5,25 @@ public struct ProcedureCallReturnWitness {
         case apply, start, done
     }
 
+    private enum ProcedureName: String, CaseIterable {
+        case addOffset
+    }
+
     public static var spec: TLASpec {
         TLASpec("ProcedureCallReturnWitness") {
-            Algorithm("ProcedureCallReturnWitness") {
-                let output = SharedVar("output", initial: 0)
-                output
-
-                Procedure("addOffset", parameters: Int.self) { value in
-                    let offset = LocalVar("offset", initial: 2)
-                    offset
+            Algorithm("ProcedureCallReturnWitness", scoped: { scope in
+                let output = scope.sharedVar("output", initial: 0)
+                Procedure(ProcedureName.addOffset, parameters: Int.self, scoped: { value, scope in
+                    let offset = scope.localVar("offset", initial: 2)
                     Do(Label.apply) {
                         Assign(output, to: value.expr + offset.expr)
                         Return()
                     }
-                }
+                })
 
-                Do(Label.start) { Call("addOffset", with: 5) }
+                Do(Label.start) { Call(ProcedureName.addOffset, with: 5) }
                 Do(Label.done) { Stop() }
-            }
+            })
         }
     }
 }

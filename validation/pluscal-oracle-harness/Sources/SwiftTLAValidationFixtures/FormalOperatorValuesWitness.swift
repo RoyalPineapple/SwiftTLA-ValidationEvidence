@@ -15,13 +15,11 @@ public struct FormalOperatorValuesWitness {
 
     public static var spec: TLASpec {
         TLASpec("FormalOperatorValuesWitness") {
-            Algorithm("FormalOperatorValuesWitness") {
-                let counters = SharedVar("counters", initial: Function<Worker, Int>.literal(
+            Algorithm("FormalOperatorValuesWitness", scoped: { scope in
+                let counters = scope.sharedVar("counters", initial: Function<Worker, Int>.literal(
                     (.left, 0),
                     (.right, 0)
                 ))
-                counters
-
                 Each(Worker.all) { worker in
                     Do(Label.advance) {
                         Assign(counters, to: counters.updating(worker, to: Expr<Int>(
@@ -35,7 +33,7 @@ public struct FormalOperatorValuesWitness {
                         )))
                     }
                 }
-            }
+            })
         }
     }
 }
