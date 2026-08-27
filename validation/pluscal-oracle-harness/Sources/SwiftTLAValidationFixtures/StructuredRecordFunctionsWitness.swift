@@ -20,14 +20,12 @@ public struct StructuredRecordFunctionsWitness {
     public enum Door: TLARecordSchema {
         public typealias Fields = DoorFields
 
-        public static let fieldNames: Set<String> = ["open"]
-        public static let defaultRecord: TLAValue = .record(["open": .bool(false)])
-
         public static func fieldName<Value>(for field: KeyPath<DoorFields, Value>) -> String? {
             field as AnyKeyPath == \DoorFields.open ? "open" : nil
         }
 
         public static let open = field(\DoorFields.open)
+        public static let fields = [TLARecordFieldDeclaration(open, default: false)]
     }
 
     public static var spec: TLASpec {
