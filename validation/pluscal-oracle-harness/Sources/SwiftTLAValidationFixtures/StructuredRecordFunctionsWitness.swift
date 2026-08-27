@@ -30,13 +30,11 @@ public struct StructuredRecordFunctionsWitness {
 
     public static var spec: TLASpec {
         TLASpec("StructuredRecordFunctionsWitness") {
-            Algorithm("StructuredRecordFunctionsWitness") {
-                let doors = SharedVar("doors", initial: Function<Car, Record<Door>>.literal(
+            Algorithm("StructuredRecordFunctionsWitness", scoped: { scope in
+                let doors = scope.sharedVar("doors", initial: Function<Car, Record<Door>>.literal(
                     (.left, Record<Door>.literal(.init(Door.open, false))),
                     (.right, Record<Door>.literal(.init(Door.open, false)))
                 ))
-                doors
-
                 Each(Car.all) { car in
                     Do(Label.openDoor) {
                         When(doors[car][Door.open] == false)
@@ -45,7 +43,7 @@ public struct StructuredRecordFunctionsWitness {
                         })
                     }
                 }
-            }
+            })
         }
     }
 }

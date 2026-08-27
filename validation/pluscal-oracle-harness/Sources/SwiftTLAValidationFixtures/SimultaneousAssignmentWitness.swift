@@ -7,17 +7,15 @@ public struct SimultaneousAssignmentWitness {
 
     public static var spec: TLASpec {
         TLASpec("SimultaneousAssignmentWitness") {
-            Algorithm("SimultaneousAssignmentWitness") {
-                let left = SharedVar("left", initial: 1)
-                left
-                let right = SharedVar("right", initial: 2)
-                right
+            Algorithm("SimultaneousAssignmentWitness", scoped: { scope in
+                let left = scope.sharedVar("left", initial: 1)
+                let right = scope.sharedVar("right", initial: 2)
 
                 Do(Label.swap) {
                     Assign(left, to: right)
                     Assign(right, to: left)
                 }
-            }
+            })
         }
     }
 }
