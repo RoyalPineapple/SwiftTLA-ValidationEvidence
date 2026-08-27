@@ -1,5 +1,14 @@
 # Release Readiness
 
+## SwiftTLA `98e4e961afa0e235d39e444ae790c9c79f3b3994`
+
+- Admission run: [33029512112](https://github.com/RoyalPineapple/SwiftTLA-ValidationEvidence/actions/runs/33029512112)
+- ValidationEvidence revision: `22b6dd15932958ac465ab4244da65018650af992`
+- Source canonical-corpus artifact: `sha256:d228f79bf6042571dec4450dbda9b7a591454f93a172916a8fe7d4b5f1dc1f5e`
+- Retained admission evidence: `sha256:6a7a400935a4210a53e604d236cbc3dd1e266cb9ee7c60e0018ff22e75373e80`
+
+All eight declared PlusCal/TLC cases were conformant.
+
 ## SwiftTLA `2156d43cd8213a1e207f7cc809aff4bc05b2f8a7`
 
 - Admission run: [33021562164](https://github.com/RoyalPineapple/SwiftTLA-ValidationEvidence/actions/runs/33021562164)
