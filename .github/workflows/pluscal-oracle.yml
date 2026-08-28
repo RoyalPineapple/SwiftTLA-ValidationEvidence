@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       swifttla_ref:
-        description: SwiftTLA branch, tag, or immutable SHA
+        description: Candidate branch, tag, or SHA; admission requires an immutable SHA
         required: true
         type: string
       admission_mode:
@@ -28,20 +28,22 @@ jobs:
         with:
           repository: RoyalPineapple/SwiftTLA
           ref: ${{ inputs.swifttla_ref }}
+          fetch-depth: 0
           path: SwiftTLA
       - id: candidate
-        name: Resolve immutable SwiftTLA revision
+        name: Resolve and verify SwiftTLA revision
+        env:
+          ADMISSION_MODE: ${{ inputs.admission_mode }}
+          REQUESTED_REF: ${{ inputs.swifttla_ref }}
         run: |
           commit="$(git -C SwiftTLA rev-parse HEAD)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          if [ "$ADMISSION_MODE" = admission ]; then
+            [[ "$REQUESTED_REF" =~ ^[0-9a-f]{40}$ ]]
+            [ "$commit" = "$REQUESTED_REF" ]
+            git -C SwiftTLA merge-base --is-ancestor "$commit" refs/remotes/origin/main
+          fi
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
-      - name: Verify admission revision is main
-        if: ${{ inputs.admission_mode == 'admission' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          main_commit="$(gh api repos/RoyalPineapple/SwiftTLA/commits/main --jq .sha)"
-          [ "$main_commit" = "${{ steps.candidate.outputs.commit }}" ]
       - name: Download source-owned canonical corpus
         env:
           GH_TOKEN: ${{ github.token }}
@@ -77,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: pluscal-oracle-${{ github.run_id }}-${{ github.run_attempt }}
+          name: pluscal-oracle-${{ steps.candidate.outputs.commit }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pluscal-oracle/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
