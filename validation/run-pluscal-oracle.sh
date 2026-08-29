@@ -222,13 +222,11 @@ for kind in swift pluscal; do
   fi
   "$root/validation/canonicalize-tlc-dot.rb" "$output/$kind-tlc/graph.dot" "$output/$kind-tlc/canonical-graph.json"
 done
-semantic_graph() { jq -S '{schema,initialStates,states,edges}' "$1"; }
+semantic_graph() { jq -S '{schema,version,initialStates,states,edges}' "$1"; }
 swift_canonical="$output/swift-tlc/canonical-graph.json"
 pluscal_canonical="$output/pluscal-tlc/canonical-graph.json"
 if ! cmp -s <(semantic_graph "$swift_canonical") <(semantic_graph "$pluscal_canonical"); then
-  swift_counts="$(jq -c '.edgeCounts' "$swift_canonical")"
-  pluscal_counts="$(jq -c '.edgeCounts' "$pluscal_canonical")"
-  fail "TLC semantic graphs differ" "$case_id" "equal canonical semantic projections (schema, initial states, states, and labeled edges)" "semantic graph content differs; retained edge counts: Swift $swift_counts; PlusCal $pluscal_counts" "Both raw DOT graphs and canonical graphs were retained; no admission claim was made." "Inspect the retained canonical semantic projections and raw DOT graphs, repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."
+  fail "TLC semantic graphs differ" "$case_id" "equal canonical initial states, states, and labeled edge multiplicities" "canonical graph content differs" "Both raw DOT graphs and canonical graphs were retained; no admission claim was made." "Inspect the retained canonical graphs and raw DOT graphs, repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."
 fi
 jq -n --arg id "$case_id" --arg commit "$commit" --arg swiftGraph "$(shasum -a 256 "$output/swift-tlc/graph.dot" | awk '{print $1}')" --arg pluscalGraph "$(shasum -a 256 "$output/pluscal-tlc/graph.dot" | awk '{print $1}')" --arg swiftCanonical "$(semantic_graph "$swift_canonical" | shasum -a 256 | awk '{print $1}')" --arg pluscalCanonical "$(semantic_graph "$pluscal_canonical" | shasum -a 256 | awk '{print $1}')" '{id:$id,resolvedCommit:$commit,conformant:true,differences:[],rawGraphSHA256:{swift:$swiftGraph,pluscal:$pluscalGraph},canonicalGraphSHA256:{swift:$swiftCanonical,pluscal:$pluscalCanonical}}' > "$output/comparison.json"
 jq -n --arg translatedModule "$(shasum -a 256 "$output/translated/$pluscal_module.tla" | awk '{print $1}')" --arg translationStdout "$(shasum -a 256 "$output/translation.stdout" | awk '{print $1}')" --arg translationStderr "$(shasum -a 256 "$output/translation.stderr" | awk '{print $1}')" --arg swiftStdout "$(shasum -a 256 "$output/swift-tlc/tlc.stdout" | awk '{print $1}')" --arg swiftStderr "$(shasum -a 256 "$output/swift-tlc/tlc.stderr" | awk '{print $1}')" --arg pluscalStdout "$(shasum -a 256 "$output/pluscal-tlc/tlc.stdout" | awk '{print $1}')" --arg pluscalStderr "$(shasum -a 256 "$output/pluscal-tlc/tlc.stderr" | awk '{print $1}')" '{translatedModuleSHA256:$translatedModule,translatorOutputSHA256:{stdout:$translationStdout,stderr:$translationStderr},tlcOutputSHA256:{swift:{stdout:$swiftStdout,stderr:$swiftStderr},pluscal:{stdout:$pluscalStdout,stderr:$pluscalStderr}}}' > "$output/output-digests.json"
