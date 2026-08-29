@@ -1,5 +1,6 @@
 {
-  "schema": "SwiftTLAExternalValidationV3",
+  "schema": "SwiftTLAExternalValidation",
+  "version": 3,
   "target": {
     "repository": "https://github.com/RoyalPineapple/SwiftTLA.git",
     "admissionRef": "main"

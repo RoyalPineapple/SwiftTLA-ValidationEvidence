@@ -14,7 +14,7 @@ Dir.mktmpdir do |directory|
     abort stderr unless status.success?
     JSON.parse(File.read(output))
   end
-  semantic_projection = ->(graph) { graph.slice("schema", "initialStates", "states", "edges") }
+  semantic_projection = ->(graph) { graph.slice("schema", "version", "initialStates", "states", "edges") }
 
   duplicate_graph = canonicalize.call("duplicate", <<~DOT)
     0 [label="start",style = filled];
@@ -23,7 +23,7 @@ Dir.mktmpdir do |directory|
     0 -> 1 [label="advance",color="black"];
     0 -> 1 [label="retry",color="black"];
   DOT
-  relation_graph = canonicalize.call("relation", <<~DOT)
+  missing_repeated_edge = canonicalize.call("missing-repeated-edge", <<~DOT)
     0 [label="start",style = filled];
     1 [label="done"];
     0 -> 1 [label="advance",color="black"];
@@ -60,10 +60,13 @@ Dir.mktmpdir do |directory|
     0 -> 1 [label="advance",color="black"];
   DOT
 
-  abort "duplicate edge was not collapsed" unless duplicate_graph.fetch("edgeCounts") == { "rawRecords" => 3, "uniqueRelations" => 2 }
-  abort "action labels were not retained" unless duplicate_graph.fetch("edges") == [{ "from" => "start", "action" => "advance", "to" => "done" }, { "from" => "start", "action" => "retry", "to" => "done" }]
-  abort "unequal raw counts changed the same relation" unless semantic_projection.call(duplicate_graph) == semantic_projection.call(relation_graph)
-  abort "semantic edge difference was ignored" if semantic_projection.call(relation_graph) == semantic_projection.call(different_graph)
+  abort "schema identity is not explicit" unless duplicate_graph.slice("schema", "version") == { "schema" => "TLCActionLabelDOTGraph", "version" => 1 }
+  abort "labeled edge multiplicity was not retained" unless duplicate_graph.fetch("edges") == [
+    { "from" => "start", "action" => "advance", "to" => "done", "occurrences" => 2 },
+    { "from" => "start", "action" => "retry", "to" => "done", "occurrences" => 1 }
+  ]
+  abort "removing one repeated edge did not change the graph" if semantic_projection.call(duplicate_graph) == semantic_projection.call(missing_repeated_edge)
+  abort "semantic edge difference was ignored" if semantic_projection.call(missing_repeated_edge) == semantic_projection.call(different_graph)
   abort "top-level binding order was not normalized" unless semantic_projection.call(reordered_bindings) == semantic_projection.call(ordered_bindings)
   abort "changed top-level binding was ignored" if semantic_projection.call(reordered_bindings) == semantic_projection.call(changed_binding)
   abort "multiline binding value prevented top-level normalization" unless semantic_projection.call(reordered_multiline_bindings) == semantic_projection.call(ordered_multiline_bindings)

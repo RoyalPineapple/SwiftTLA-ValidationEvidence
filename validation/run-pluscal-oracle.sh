@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus=
+case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus= case_source=
 fixture_export_timeout_seconds=180
 fixture_registry_timeout_seconds=600
 pluscal_translation_timeout_seconds=30
@@ -48,9 +48,15 @@ timeout_failure() {
 [ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] && [ -n "$canonical_corpus" ] || exit 2
 if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
+[[ "$validation_commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid validation SHA" "runner arguments" "40-character SHA" "$validation_commit" "No run started" "Use the resolved validation checkout SHA."
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
 [ ! -e "$output" ] || fail "Evidence directory exists" "$output" "fresh directory" "already exists" "No run started" "Choose a fresh output directory."
 mkdir -p "$output"
+if resolved_validation_commit="$("$root/validation/verify-validation-checkout.sh" "$root" "$validation_commit" 2> "$output/validation-checkout.stderr")"; then
+  validation_commit="$resolved_validation_commit"
+else
+  fail "Validation checkout mismatch" "$root" "$validation_commit on origin/main" "$(<"$output/validation-checkout.stderr")" "No fixture export or TLC run started" "Run admission from the exact ValidationEvidence main revision."
+fi
 
 is_canonical_corpus_fixture() {
   jq -e --arg fixture "$1" '
@@ -89,10 +95,11 @@ stage_canonical_corpus_fixture() {
     cp "$canonical_corpus/$import_path" "$input/imports/$(basename "$import_path")"
   done < <(jq -r --arg fixture "$fixture" '.cases[] | select(.id == $fixture) | .files[].path | select(test("/imports/[^/]+\\.tla$"))' "$manifest")
   hashes="$({ for file in "$input"/swift-lowered.tla "$input"/swift.cfg "$input"/pluscal-source.tla "$input"/pluscal.cfg "$input"/canonical-corpus-manifest.json "$input"/imports/*.tla; do [ -f "$file" ] || continue; jq -n --arg name "${file#$input/}" --arg digest "$(shasum -a 256 "$file" | awk '{print $1}')" '{($name):$digest}'; done; } | jq -s add)"
-  jq -n --arg fixture "$fixture" --arg commit "$commit" --argjson hashes "$hashes" '{schema:"SwiftTLAPlusCalFixtureExportV1",fixtureID:$fixture,swiftTLACommit:$commit,inputSHA256:$hashes,source:"canonical-corpus"}' > "$input/metadata.json"
+  jq -n --arg fixture "$fixture" --arg commit "$commit" --argjson hashes "$hashes" '{schema:"SwiftTLAPlusCalFixtureExport",version:1,fixtureID:$fixture,swiftTLACommit:$commit,inputSHA256:$hashes,source:"canonical-corpus"}' > "$input/metadata.json"
 }
 
 contract="$root/validation/pluscal-oracle.json"
+jq -e '.schema == "SwiftTLAExternalValidation" and .version == 3' "$contract" >/dev/null || fail "Invalid validation contract" "$contract" "the current external-validation schema and version" "contract identity check failed" "No run started" "Repair the validation contract."
 required_ids="$(jq -r '.requiredCases[].fixtureID' "$contract")"
 suite_ids="$(jq -r '.suite.requiresFixtureIDs[]' "$contract")"
 if ! diff -u <(printf '%s\n' "$required_ids" | sed '/^$/d' | sort) <(printf '%s\n' "$suite_ids" | sed '/^$/d' | sort) >/dev/null; then
@@ -116,7 +123,7 @@ if [ "$case_id" = all ]; then
     ids="$(<"$suite/fixture-list.stdout")"
   else
     status=$?
-    jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAuditV1",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
+    jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAudit",version:1,id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
     if [ "$status" -eq "$timeout_exit" ]; then
       jq -n --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" --argjson limit "$fixture_registry_timeout_seconds" '{whatFailed:"Fixture registry export timed out",whereItFailed:"fixture registry / fixture export",expected:("the registered bounded fixtures within " + ($limit | tostring) + " seconds"),actual:("fixture registry export exceeded the limit; inspect " + $stdout + " and " + $stderr),systemChange:"The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made.",nextSafeAction:"Inspect retained output, repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     else
@@ -145,7 +152,7 @@ if [ "$case_id" = all ]; then
   missing="$(comm -23 <(printf '%s\n' "$expected_ids") <(printf '%s\n' "$discovered_ids"))"
   unexpected="$(comm -13 <(printf '%s\n' "$expected_ids") <(printf '%s\n' "$discovered_ids"))"
   failed="$(jq '[.[] | select(.status != "conformant")] | length' <<< "$fixture_results")"
-  jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" --argjson fixtures "$fixture_results" --argjson failed "$failed" --arg missing "$missing" --arg unexpected "$unexpected" '{schema:"SwiftTLAPlusCalDifferentialAuditV2",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:$fixtures,missingFixtureIDs:($missing | split("\n") | map(select(length > 0))),unexpectedFixtureIDs:($unexpected | split("\n") | map(select(length > 0))),conformant:($failed == 0 and $missing == "" and $unexpected == "")}' > "$suite/result.json"
+  jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" --argjson fixtures "$fixture_results" --argjson failed "$failed" --arg missing "$missing" --arg unexpected "$unexpected" '{schema:"SwiftTLAPlusCalDifferentialAudit",version:1,id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:$fixtures,missingFixtureIDs:($missing | split("\n") | map(select(length > 0))),unexpectedFixtureIDs:($unexpected | split("\n") | map(select(length > 0))),conformant:($failed == 0 and $missing == "" and $unexpected == "")}' > "$suite/result.json"
   if [ "$failed" -ne 0 ] || [ -n "$missing" ] || [ -n "$unexpected" ]; then
     jq -n --arg actual "failed fixture results: $failed; missing IDs: ${missing:-none}; unexpected IDs: ${unexpected:-none}; inspect pluscal-differential-audit/result.json and retained fixture evidence" '{whatFailed:"PlusCal differential audit",whereItFailed:"pluscal-differential-audit/result.json",expected:"every required fixture to have an exact Swift-lowered versus official-PlusCal/TLC graph comparison",actual:$actual,systemChange:"Per-fixture evidence was retained; no admission claim was made.",nextSafeAction:"Repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     [ "$status" -ne 0 ] || status=1
@@ -154,6 +161,7 @@ if [ "$case_id" = all ]; then
 fi
 
 if is_canonical_corpus_fixture "$case_id"; then
+  case_source=canonical-corpus
   if stage_canonical_corpus_fixture "$case_id" > "$output/fixture-export.stdout" 2> "$output/fixture-export.stderr"; then
     :
   else
@@ -161,7 +169,7 @@ if is_canonical_corpus_fixture "$case_id"; then
     fail "Canonical corpus staging failed" "fixture $case_id / canonical corpus" "the SHA-bound source export to stage successfully" "staging exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "No translator or TLC run started; retained source-artifact evidence is available." "Repair the source export or artifact retrieval, then dispatch one fresh hosted candidate run."
   fi
 elif run_bounded "$fixture_export_timeout_seconds" "$output/fixture-export.stdout" "$output/fixture-export.stderr" swift run --jobs 1 --package-path "$root/validation/pluscal-oracle-harness" pluscal-oracle-harness "$case_id" "$output/input" "$commit"; then
-  :
+  case_source=validation-harness
 else
   status=$?
   if [ "$status" -eq "$timeout_exit" ]; then
@@ -169,9 +177,14 @@ else
   fi
   fail "Fixture export failed" "fixture $case_id / fixture export" "a renderable registered fixture" "fixture export exited $status; inspect $output/fixture-export.stdout and $output/fixture-export.stderr" "Fixture export output was retained; no TLC run started; no admission claim was made." "Repair the fixture boundary, then dispatch one fresh hosted candidate run."
 fi
-jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal,source:"canonical-corpus"}' > "$output/case.json"
-jq -n --arg id "$case_id" --arg commit "$commit" '{runner:{caseID:$id,engine:"pluscal-oracle",runID:$commit},swift:{caseID:$id,engine:"swift",runID:$commit},tlc:{caseID:$id,engine:"tlc",runID:$commit}}' > "$output/correlations.json"
-printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":false,"swiftTLC":false,"pluscalTLC":false}\n' > "$output/raw-artifacts.json"
+jq -e --arg fixture "$case_id" --arg commit "$commit" --arg source "$case_source" '
+  .schema == "SwiftTLAPlusCalFixtureExport"
+    and .version == 1
+    and .fixtureID == $fixture
+    and .swiftTLACommit == $commit
+    and .source == $source
+' "$output/input/metadata.json" >/dev/null || fail "Fixture provenance is invalid" "$output/input/metadata.json" "the fixture ID, source, and SwiftTLA SHA for this export" "metadata identity check failed" "No translator or TLC run started" "Repair the fixture exporter or canonical corpus staging."
+jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg source "$case_source" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal,source:$source}' > "$output/case.json"
 mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
 jar="$root/.build/tla2tools.jar"; mkdir -p "$root/.build"
 if [ ! -f "$jar" ]; then curl -fsSL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o "$jar"; fi
@@ -222,14 +235,11 @@ for kind in swift pluscal; do
   fi
   "$root/validation/canonicalize-tlc-dot.rb" "$output/$kind-tlc/graph.dot" "$output/$kind-tlc/canonical-graph.json"
 done
-semantic_graph() { jq -S '{schema,initialStates,states,edges}' "$1"; }
+semantic_graph() { jq -S '{schema,version,initialStates,states,edges}' "$1"; }
 swift_canonical="$output/swift-tlc/canonical-graph.json"
 pluscal_canonical="$output/pluscal-tlc/canonical-graph.json"
 if ! cmp -s <(semantic_graph "$swift_canonical") <(semantic_graph "$pluscal_canonical"); then
-  swift_counts="$(jq -c '.edgeCounts' "$swift_canonical")"
-  pluscal_counts="$(jq -c '.edgeCounts' "$pluscal_canonical")"
-  fail "TLC semantic graphs differ" "$case_id" "equal canonical semantic projections (schema, initial states, states, and labeled edges)" "semantic graph content differs; retained edge counts: Swift $swift_counts; PlusCal $pluscal_counts" "Both raw DOT graphs and canonical graphs were retained; no admission claim was made." "Inspect the retained canonical semantic projections and raw DOT graphs, repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."
+  fail "TLC semantic graphs differ" "$case_id" "equal canonical initial states, states, and labeled edge multiplicities" "canonical graph content differs" "Both raw DOT graphs and canonical graphs were retained; no admission claim was made." "Inspect the retained canonical graphs and raw DOT graphs, repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."
 fi
 jq -n --arg id "$case_id" --arg commit "$commit" --arg swiftGraph "$(shasum -a 256 "$output/swift-tlc/graph.dot" | awk '{print $1}')" --arg pluscalGraph "$(shasum -a 256 "$output/pluscal-tlc/graph.dot" | awk '{print $1}')" --arg swiftCanonical "$(semantic_graph "$swift_canonical" | shasum -a 256 | awk '{print $1}')" --arg pluscalCanonical "$(semantic_graph "$pluscal_canonical" | shasum -a 256 | awk '{print $1}')" '{id:$id,resolvedCommit:$commit,conformant:true,differences:[],rawGraphSHA256:{swift:$swiftGraph,pluscal:$pluscalGraph},canonicalGraphSHA256:{swift:$swiftCanonical,pluscal:$pluscalCanonical}}' > "$output/comparison.json"
 jq -n --arg translatedModule "$(shasum -a 256 "$output/translated/$pluscal_module.tla" | awk '{print $1}')" --arg translationStdout "$(shasum -a 256 "$output/translation.stdout" | awk '{print $1}')" --arg translationStderr "$(shasum -a 256 "$output/translation.stderr" | awk '{print $1}')" --arg swiftStdout "$(shasum -a 256 "$output/swift-tlc/tlc.stdout" | awk '{print $1}')" --arg swiftStderr "$(shasum -a 256 "$output/swift-tlc/tlc.stderr" | awk '{print $1}')" --arg pluscalStdout "$(shasum -a 256 "$output/pluscal-tlc/tlc.stdout" | awk '{print $1}')" --arg pluscalStderr "$(shasum -a 256 "$output/pluscal-tlc/tlc.stderr" | awk '{print $1}')" '{translatedModuleSHA256:$translatedModule,translatorOutputSHA256:{stdout:$translationStdout,stderr:$translationStderr},tlcOutputSHA256:{swift:{stdout:$swiftStdout,stderr:$swiftStderr},pluscal:{stdout:$pluscalStdout,stderr:$pluscalStderr}}}' > "$output/output-digests.json"
-printf '{"swiftLowered":true,"pluscalSource":true,"translatorOutput":true,"swiftTLC":true,"pluscalTLC":true}\n' > "$output/raw-artifacts.json"

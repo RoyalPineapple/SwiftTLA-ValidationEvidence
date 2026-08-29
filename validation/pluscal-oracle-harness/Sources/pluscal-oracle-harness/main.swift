@@ -3,7 +3,9 @@ import CryptoKit
 import Foundation
 
 struct Metadata: Encodable {
-    let schema = "SwiftTLAPlusCalFixtureExportV1"
+    let schema = "SwiftTLAPlusCalFixtureExport"
+    let version = 1
+    let source = "validation-harness"
     let fixtureID: String
     let swiftTLACommit: String
     let inputSHA256: [String: String]
