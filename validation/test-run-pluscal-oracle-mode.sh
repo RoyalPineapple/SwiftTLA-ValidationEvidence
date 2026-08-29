@@ -3,6 +3,7 @@ set -euo pipefail
 
 runner="$(cd "$(dirname "$0")" && pwd)/run-pluscal-oracle.sh"
 root="$(cd "$(dirname "$0")/.." && pwd)"
+jq -e '.schema == "SwiftTLAExternalValidation" and .version == 3' "$root/validation/pluscal-oracle.json" >/dev/null
 grep -Fq 'if [ "$mode" = admission ] && [ "$case_id" != all ]; then' "$runner"
 grep -Fq ' --mode candidate --validation-commit ' "$runner"
 grep -Fq 'if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi' "$runner"

@@ -99,6 +99,7 @@ stage_canonical_corpus_fixture() {
 }
 
 contract="$root/validation/pluscal-oracle.json"
+jq -e '.schema == "SwiftTLAExternalValidation" and .version == 3' "$contract" >/dev/null || fail "Invalid validation contract" "$contract" "the current external-validation schema and version" "contract identity check failed" "No run started" "Repair the validation contract."
 required_ids="$(jq -r '.requiredCases[].fixtureID' "$contract")"
 suite_ids="$(jq -r '.suite.requiresFixtureIDs[]' "$contract")"
 if ! diff -u <(printf '%s\n' "$required_ids" | sed '/^$/d' | sort) <(printf '%s\n' "$suite_ids" | sed '/^$/d' | sort) >/dev/null; then
@@ -122,7 +123,7 @@ if [ "$case_id" = all ]; then
     ids="$(<"$suite/fixture-list.stdout")"
   else
     status=$?
-    jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAuditV1",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
+    jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" '{schema:"SwiftTLAPlusCalDifferentialAudit",version:1,id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:[],conformant:false}' > "$suite/result.json"
     if [ "$status" -eq "$timeout_exit" ]; then
       jq -n --arg stdout "$suite/fixture-list.stdout" --arg stderr "$suite/fixture-list.stderr" --argjson limit "$fixture_registry_timeout_seconds" '{whatFailed:"Fixture registry export timed out",whereItFailed:"fixture registry / fixture export",expected:("the registered bounded fixtures within " + ($limit | tostring) + " seconds"),actual:("fixture registry export exceeded the limit; inspect " + $stdout + " and " + $stderr),systemChange:"The timed-out process group was terminated; partial stdout and stderr were retained; no admission claim was made.",nextSafeAction:"Inspect retained output, repair the fixture-export harness, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     else
@@ -151,7 +152,7 @@ if [ "$case_id" = all ]; then
   missing="$(comm -23 <(printf '%s\n' "$expected_ids") <(printf '%s\n' "$discovered_ids"))"
   unexpected="$(comm -13 <(printf '%s\n' "$expected_ids") <(printf '%s\n' "$discovered_ids"))"
   failed="$(jq '[.[] | select(.status != "conformant")] | length' <<< "$fixture_results")"
-  jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" --argjson fixtures "$fixture_results" --argjson failed "$failed" --arg missing "$missing" --arg unexpected "$unexpected" '{schema:"SwiftTLAPlusCalDifferentialAuditV2",id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:$fixtures,missingFixtureIDs:($missing | split("\n") | map(select(length > 0))),unexpectedFixtureIDs:($unexpected | split("\n") | map(select(length > 0))),conformant:($failed == 0 and $missing == "" and $unexpected == "")}' > "$suite/result.json"
+  jq -n --arg commit "$commit" --arg requestedRef "$requested_ref" --arg validationCommit "$validation_commit" --arg mode "$mode" --argjson fixtures "$fixture_results" --argjson failed "$failed" --arg missing "$missing" --arg unexpected "$unexpected" '{schema:"SwiftTLAPlusCalDifferentialAudit",version:1,id:"pluscal-differential-audit",requestedRef:$requestedRef,resolvedCommit:$commit,validationCommit:$validationCommit,mode:$mode,fixtureResults:$fixtures,missingFixtureIDs:($missing | split("\n") | map(select(length > 0))),unexpectedFixtureIDs:($unexpected | split("\n") | map(select(length > 0))),conformant:($failed == 0 and $missing == "" and $unexpected == "")}' > "$suite/result.json"
   if [ "$failed" -ne 0 ] || [ -n "$missing" ] || [ -n "$unexpected" ]; then
     jq -n --arg actual "failed fixture results: $failed; missing IDs: ${missing:-none}; unexpected IDs: ${unexpected:-none}; inspect pluscal-differential-audit/result.json and retained fixture evidence" '{whatFailed:"PlusCal differential audit",whereItFailed:"pluscal-differential-audit/result.json",expected:"every required fixture to have an exact Swift-lowered versus official-PlusCal/TLC graph comparison",actual:$actual,systemChange:"Per-fixture evidence was retained; no admission claim was made.",nextSafeAction:"Repair the named fixture or lowerer, then dispatch one fresh hosted candidate run."}' > "$suite/diagnostic.json"
     [ "$status" -ne 0 ] || status=1

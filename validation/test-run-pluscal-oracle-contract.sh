@@ -45,4 +45,4 @@ expected="$(jq -r '.requiredCases[].fixtureID' "$root/validation/pluscal-oracle.
 actual="$(cut -f1 "$log" | sort)"
 [ "$actual" = "$expected" ]
 [ "$(awk -F '\t' -v checkout="$root" -v commit="$commit" -v corpus="$corpus" '$2 != checkout || $3 != commit || $4 != commit || $5 != "candidate" || $7 != corpus { print; exit 1 }' "$log")" = "" ]
-jq -e '.mode == "admission" and .conformant == true' "$output/pluscal-differential-audit/result.json" >/dev/null
+jq -e '.schema == "SwiftTLAPlusCalDifferentialAudit" and .version == 1 and .mode == "admission" and .conformant == true' "$output/pluscal-differential-audit/result.json" >/dev/null
