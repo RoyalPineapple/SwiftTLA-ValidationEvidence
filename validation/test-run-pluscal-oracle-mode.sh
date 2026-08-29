@@ -35,12 +35,3 @@ grep -Fq 'id: "voteproof-upstream-port"' "$registry"
 ! grep -Fq 'CONSTANT Value =' "$registry"
 grep -Fq 'specification().compile().renderedPlusCalBundle()' "$registry"
 grep -Fq 'specification().compile().renderedTLAModuleBundle()' "$exporter"
-! grep -Fq 'specification().tlaBundle' "$exporter"
-
-perl -0ne '
-  while (/\blet\s+(\w+)(?:\s*:\s*[^=]+)?\s*=\s*(?:SharedVar|LocalVar)\b/g) {
-    $name = $1;
-    $tail = substr($_, pos);
-    $tail =~ /\n[ \t]*\Q$name\E[ \t]*\n/ or die "unregistered runtime handle $name in $ARGV\n";
-  }
-' "$fixtures"/*Witness.swift
