@@ -48,9 +48,15 @@ timeout_failure() {
 [ -n "$case_id" ] && [ -n "$checkout" ] && [ -n "$commit" ] && [ -n "$requested_ref" ] && [ -n "$validation_commit" ] && [ -n "$output" ] && [ -n "$canonical_corpus" ] || exit 2
 if [ "$case_id" = kvsnap-upstream-port ] || [ "$case_id" = voteproof-upstream-port ]; then tlc_timeout_seconds=300; fi
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid candidate SHA" "runner arguments" "40-character SHA" "$commit" "No run started" "Use the resolved checkout SHA."
+[[ "$validation_commit" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid validation SHA" "runner arguments" "40-character SHA" "$validation_commit" "No run started" "Use the resolved validation checkout SHA."
 [ "$(git -C "$checkout" rev-parse HEAD)" = "$commit" ] || fail "Candidate checkout mismatch" "$checkout" "$commit" "unresolved" "No run started" "Check out exactly the candidate SHA."
 [ ! -e "$output" ] || fail "Evidence directory exists" "$output" "fresh directory" "already exists" "No run started" "Choose a fresh output directory."
 mkdir -p "$output"
+if resolved_validation_commit="$("$root/validation/verify-validation-checkout.sh" "$root" "$validation_commit" 2> "$output/validation-checkout.stderr")"; then
+  validation_commit="$resolved_validation_commit"
+else
+  fail "Validation checkout mismatch" "$root" "$validation_commit on origin/main" "$(<"$output/validation-checkout.stderr")" "No fixture export or TLC run started" "Run admission from the exact ValidationEvidence main revision."
+fi
 
 is_canonical_corpus_fixture() {
   jq -e --arg fixture "$1" '
