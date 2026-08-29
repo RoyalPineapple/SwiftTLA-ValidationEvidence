@@ -1,6 +1,14 @@
 # PlusCal validation evidence
 
-This repository owns the external PlusCal translator/TLC lifecycle. Candidate mode accepts a SwiftTLA branch, tag, or SHA, resolves it once, and uses the immutable checkout SHA for every subsequent operation. The workflow downloads that exact revision's canonical corpus artifact and retains per-fixture input, TLC, and canonical comparison evidence as a GitHub Actions artifact. Upstream corpus models are authored only in SwiftTLA; this repository stages their verified bundles unchanged. The small harness contains only focused regression witnesses that have no corpus model.
+This repository owns the external PlusCal translator/TLC lifecycle. Candidate
+mode accepts a SwiftTLA branch, tag, or SHA, resolves it once, and uses the
+immutable checkout SHA for every subsequent operation. The workflow downloads
+that exact revision's canonical corpus artifact and retains per-fixture input,
+TLC, and canonical comparison evidence as a GitHub Actions artifact. Upstream
+corpus models are authored only in SwiftTLA; this repository stages their
+verified bundles unchanged. The small harness contains focused regression
+witnesses that have no corpus model. Each `case.json` identifies its source as
+`canonical-corpus` or `validation-harness`.
 
 Candidate mode records pre-merge evidence. Admission mode records post-merge
 evidence. It requires an immutable 40-character SwiftTLA SHA, verifies the
