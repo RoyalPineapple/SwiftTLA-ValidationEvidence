@@ -70,14 +70,17 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" "$artifact_url" \
             -o "$CORPUS_ROOT/corpus.zip"
           archive_digest="$(shasum -a 256 "$CORPUS_ROOT/corpus.zip" | awk '{print "sha256:" $1}')"
-          [ "$archive_digest" = "$artifact_digest" ]
+          archive_verification=mismatch
+          [ "$archive_digest" != "$artifact_digest" ] || archive_verification=verified
           updated_provenance="$CORPUS_ROOT/provenance.updated.json"
           jq \
             --arg downloadedArchiveSHA256 "$archive_digest" \
-            '. + {archiveVerification:"verified",downloadedArchiveSHA256:$downloadedArchiveSHA256}' \
+            --arg archiveVerification "$archive_verification" \
+            '. + {archiveVerification:$archiveVerification,downloadedArchiveSHA256:$downloadedArchiveSHA256}' \
             "$CORPUS_ROOT/provenance.json" \
             > "$updated_provenance"
           mv "$updated_provenance" "$CORPUS_ROOT/provenance.json"
+          [ "$archive_verification" = verified ]
           unzip -q "$CORPUS_ROOT/corpus.zip" -d "$CORPUS_ROOT/input"
       - uses: actions/setup-java@v5
         with:
