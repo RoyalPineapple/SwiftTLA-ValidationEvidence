@@ -37,7 +37,9 @@ jobs:
         env:
           ADMISSION_MODE: ${{ inputs.admission_mode }}
           REQUESTED_REF: ${{ inputs.swifttla_ref }}
+          VALIDATION_REF: ${{ github.ref }}
         run: |
+          [ "$VALIDATION_REF" = refs/heads/main ]
           commit="$(git -C SwiftTLA rev-parse HEAD)"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           if [ "$ADMISSION_MODE" = admission ]; then
@@ -48,23 +50,42 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Download source-owned canonical corpus
         env:
+          ADMISSION_MODE: ${{ inputs.admission_mode }}
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.commit }}
           CORPUS_ROOT: ${{ runner.temp }}/canonical-corpus
         run: |
           set -euo pipefail
-          artifact_name="canonical-corpus-$CANDIDATE_SHA"
-          artifact_url="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/artifacts?name=$artifact_name&per_page=100" | jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | sort_by(.created_at) | last | .archive_download_url // empty')"
-          [ -n "$artifact_url" ]
           mkdir -p "$CORPUS_ROOT"
+          jq -n --arg candidateSHA "$CANDIDATE_SHA" '{candidateSHA:$candidateSHA,selection:"pending"}' > "$CORPUS_ROOT/provenance.json"
+          selection="$(./validation/select-canonical-corpus.sh "$CANDIDATE_SHA" "$ADMISSION_MODE")"
+          artifact_url="$(jq -r '.artifact.archiveDownloadURL' <<< "$selection")"
+          artifact_digest="$(jq -r '.artifact.sha256' <<< "$selection")"
+          [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          jq --arg candidateSHA "$CANDIDATE_SHA" \
+            '. + {candidateSHA:$candidateSHA,archiveVerification:"pending"} | del(.artifact.archiveDownloadURL)' \
+            <<< "$selection" \
+            > "$CORPUS_ROOT/provenance.json"
           curl --fail --location --retry 3 --connect-timeout 10 \
             -H "Authorization: Bearer $GH_TOKEN" "$artifact_url" \
             -o "$CORPUS_ROOT/corpus.zip"
+          archive_digest="$(shasum -a 256 "$CORPUS_ROOT/corpus.zip" | awk '{print "sha256:" $1}')"
+          archive_verification=mismatch
+          [ "$archive_digest" != "$artifact_digest" ] || archive_verification=verified
+          updated_provenance="$CORPUS_ROOT/provenance.updated.json"
+          jq \
+            --arg downloadedArchiveSHA256 "$archive_digest" \
+            --arg archiveVerification "$archive_verification" \
+            '. + {archiveVerification:$archiveVerification,downloadedArchiveSHA256:$downloadedArchiveSHA256}' \
+            "$CORPUS_ROOT/provenance.json" \
+            > "$updated_provenance"
+          mv "$updated_provenance" "$CORPUS_ROOT/provenance.json"
+          [ "$archive_verification" = verified ]
           unzip -q "$CORPUS_ROOT/corpus.zip" -d "$CORPUS_ROOT/input"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "17.0.19+10"
       - name: Run PlusCal evidence suite
         env:
           EVIDENCE_ROOT: ${{ runner.temp }}/pluscal-oracle/${{ github.run_id }}-${{ github.run_attempt }}
@@ -77,6 +98,14 @@ jobs:
             --validation-commit "${{ github.sha }}" \
             --canonical-corpus "${{ runner.temp }}/canonical-corpus/input" \
             --output "$EVIDENCE_ROOT"
+      - name: Retain canonical corpus provenance
+        if: always()
+        env:
+          EVIDENCE_ROOT: ${{ runner.temp }}/pluscal-oracle/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -p "$EVIDENCE_ROOT"
+          provenance="${{ runner.temp }}/canonical-corpus/provenance.json"
+          [ ! -f "$provenance" ] || cp "$provenance" "$EVIDENCE_ROOT/canonical-corpus-provenance.json"
       - name: Upload retained candidate evidence
         if: always()
         uses: actions/upload-artifact@v7
