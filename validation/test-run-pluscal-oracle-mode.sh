@@ -33,6 +33,7 @@ grep -Fq '.name == "canonical-corpus-export"' "$workflow"
 grep -Fq '.head_sha == $sha' "$workflow"
 grep -Fq '[ "$(jq length <<< "$eligible")" -eq 1 ]' "$workflow"
 grep -Fq 'canonical-corpus-provenance.json' "$workflow"
+grep -Fq 'java-version: "17.0.19+10"' "$workflow"
 
 fixtures="$root/validation/pluscal-oracle-harness/Sources/SwiftTLAValidationFixtures"
 registry="$fixtures/FixtureRegistry.swift"

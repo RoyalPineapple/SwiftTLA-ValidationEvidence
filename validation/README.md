@@ -23,7 +23,7 @@ Admission executes exactly the stable fixture contract in
 
 `--case all` always writes `pluscal-differential-audit/result.json`. It runs the declared contract directly, passes the immutable checkout, SHA, configurations, and corpus path to every child, and records missing or unexpected fixtures as well as per-fixture graph results. The audit cannot pass by silently checking a smaller corpus.
 
-Each fixture directory retains the resolved SwiftTLA and validation-repository SHAs; tool version, jar digest, and Java version; exact commands/options; source and output digests; raw translator and TLC stdout/stderr; raw TLC DOT graphs; canonical graphs; and the exact graph comparison. Evidence directories are fresh and never reused. Canonical graph comparison requires equal initial states, states, and labeled edge multiplicities. Each canonical edge records its source state, action label, target state, and occurrence count.
+Each fixture directory retains the resolved SwiftTLA and validation-repository SHAs; tool version, jar digest, and Java version; exact commands/options; source and output digests; raw translator and TLC stdout/stderr; raw TLC DOT graphs; canonical graphs; and the exact graph comparison. The workflow runs Eclipse Temurin `17.0.19+10`, the same JVM pinned by SwiftTLA's finite-graph checks. Evidence directories are fresh and never reused. Canonical graph comparison requires equal initial states, states, and labeled edge multiplicities. Each canonical edge records its source state, action label, target state, and occurrence count.
 The DOT reader requires TLC's complete graph envelope and accepts every state,
 edge, and rank record. It rejects malformed records, duplicate state IDs,
 unknown references, missing closure, and trailing data.
