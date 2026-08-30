@@ -10,8 +10,8 @@ It also retains per-fixture input,
 TLC, and canonical comparison evidence as a GitHub Actions artifact. Upstream
 corpus models are authored only in SwiftTLA; this repository stages their
 verified bundles unchanged. The small harness contains focused regression
-witnesses that have no corpus model. Each `case.json` identifies its source as
-`canonical-corpus` or `validation-harness`.
+witnesses owned by the validation boundary. Each `case.json` identifies its
+source as `canonical-corpus` or `validation-harness`.
 
 Candidate mode records pre-merge evidence. Admission mode records post-merge
 evidence. It requires an immutable 40-character SwiftTLA SHA, verifies the
@@ -22,9 +22,9 @@ SHA belongs to `origin/main` and supplies that SHA to every fixture run.
 Admission executes exactly the stable fixture contract in
 `validation/pluscal-oracle.json`.
 
-`--case all` always writes `pluscal-differential-audit/result.json`. It runs the declared contract directly, passes the immutable checkout, SHA, configurations, and corpus path to every child, and records missing or unexpected fixtures as well as per-fixture graph results. The audit cannot pass by silently checking a smaller corpus.
+`--case all` always writes `pluscal-differential-audit/result.json`. It runs the declared contract directly, passes the immutable checkout, SHA, configurations, and corpus path to every child, and records missing or unexpected fixtures as well as per-fixture graph results. A passing audit contains every declared fixture and zero unexpected fixtures.
 
-Each fixture directory retains the resolved SwiftTLA and validation-repository SHAs; tool version, jar digest, and Java version; exact commands/options; source and output digests; raw translator and TLC stdout/stderr; raw TLC DOT graphs; canonical graphs; and the exact graph comparison. The runner requires Eclipse Temurin `17.0.19+10`, the same JVM pinned by SwiftTLA's finite-graph checks, and retains the complete `java -version` output. Evidence directories are fresh and never reused. Canonical graph comparison requires equal initial states, states, and labeled edge multiplicities. Each canonical edge records its source state, action label, target state, and occurrence count.
+Each fixture directory retains the resolved SwiftTLA and validation-repository SHAs; tool version, jar digest, and Java version; exact commands/options; source and output digests; raw translator and TLC stdout/stderr; raw TLC DOT graphs; canonical graphs; and the exact graph comparison. The runner requires Eclipse Temurin `17.0.19+10`, the same JVM pinned by SwiftTLA's finite-graph checks, and retains the complete `java -version` output. Each run creates a fresh evidence directory. Canonical graph comparison requires equal initial states, states, and labeled edge multiplicities. Each canonical edge records its source state, action label, target state, and occurrence count.
 The DOT reader requires TLC's complete graph envelope and accepts every state,
 edge, and rank record. It rejects malformed records, duplicate state IDs,
 unknown references, missing closure, and trailing data.
