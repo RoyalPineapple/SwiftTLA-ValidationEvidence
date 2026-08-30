@@ -25,8 +25,12 @@ grep -Fq 'cp "$canonical_corpus/$pluscal_config_path" "$input/pluscal.cfg"' "$ru
 ! grep -Fq 'external-module-provenance.json' "$runner"
 grep -Fq '.workflow_run.head_sha == $sha' "$workflow"
 grep -Fq '.path == ".github/workflows/ci.yml"' "$workflow"
+grep -Fq '.workflow_id == $workflowID' "$workflow"
+grep -Fq '.repository.id == $repositoryID' "$workflow"
+grep -Fq '.head_repository.id == $repositoryID' "$workflow"
 grep -Fq '.event == "push" and .head_branch == "main"' "$workflow"
 grep -Fq '.name == "canonical-corpus-export"' "$workflow"
+grep -Fq '.head_sha == $sha' "$workflow"
 grep -Fq '[ "$(jq length <<< "$eligible")" -eq 1 ]' "$workflow"
 grep -Fq 'canonical-corpus-provenance.json' "$workflow"
 

@@ -49,57 +49,89 @@ jobs:
       - name: Download source-owned canonical corpus
         env:
           ADMISSION_MODE: ${{ inputs.admission_mode }}
+          CANONICAL_CORPUS_WORKFLOW_ID: "326504229"
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.commit }}
           CORPUS_ROOT: ${{ runner.temp }}/canonical-corpus
+          SWIFTTLA_REPOSITORY_ID: "1322108356"
         run: |
           set -euo pipefail
           artifact_name="canonical-corpus-$CANDIDATE_SHA"
           artifacts="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/artifacts?name=$artifact_name&per_page=100" | jq -s '[.[].artifacts[]]')"
           eligible='[]'
-          while IFS=$'\t' read -r artifact_id run_id artifact_url artifact_digest; do
+          while IFS=$'\t' read -r artifact_id run_id; do
             [ -n "$artifact_id" ] || continue
+            artifact="$(jq -c --argjson id "$artifact_id" '.[] | select(.id == $id)' <<< "$artifacts")"
             run="$(gh api "/repos/RoyalPineapple/SwiftTLA/actions/runs/$run_id")"
-            jq -e --arg sha "$CANDIDATE_SHA" --arg mode "$ADMISSION_MODE" '
+            jq -e \
+              --arg sha "$CANDIDATE_SHA" \
+              --arg mode "$ADMISSION_MODE" \
+              --argjson repositoryID "$SWIFTTLA_REPOSITORY_ID" \
+              --argjson workflowID "$CANONICAL_CORPUS_WORKFLOW_ID" '
               .status == "completed"
                 and .conclusion == "success"
                 and .head_sha == $sha
                 and .path == ".github/workflows/ci.yml"
+                and .workflow_id == $workflowID
+                and .repository.id == $repositoryID
+                and .head_repository.id == $repositoryID
                 and ($mode != "admission" or (.event == "push" and .head_branch == "main"))
             ' <<< "$run" >/dev/null || continue
             jobs="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/runs/$run_id/jobs?per_page=100" | jq -s '[.[].jobs[]]')"
-            jq -e '[.[] | select(.name == "canonical-corpus-export" and .status == "completed" and .conclusion == "success")] | length == 1' <<< "$jobs" >/dev/null || continue
+            job="$(jq -c --arg sha "$CANDIDATE_SHA" '[.[] | select(
+              .name == "canonical-corpus-export"
+                and .head_sha == $sha
+                and .status == "completed"
+                and .conclusion == "success"
+            )] | if length == 1 then .[0] else empty end' <<< "$jobs")"
+            [ -n "$job" ] || continue
             eligible="$(jq -c \
-              --argjson artifactID "$artifact_id" \
-              --argjson runID "$run_id" \
-              --arg url "$artifact_url" \
-              --arg digest "$artifact_digest" \
-              '. + [{artifactID:$artifactID, workflowRunID:$runID, archiveDownloadURL:$url, digest:$digest}]' \
+              --argjson artifact "$artifact" \
+              --argjson run "$run" \
+              --argjson job "$job" '
+                . + [{
+                  artifact: ($artifact | {
+                    id, name, digest, size_in_bytes, created_at, updated_at, expires_at,
+                    archive_download_url
+                  }),
+                  workflowRun: ($run | {
+                    id, run_attempt, workflow_id, path, event, head_branch, head_sha,
+                    status, conclusion,
+                    repositoryID: .repository.id,
+                    headRepositoryID: .head_repository.id
+                  }),
+                  exportJob: ($job | {id, name, head_sha, status, conclusion})
+                }]
+              ' \
               <<< "$eligible")"
           done < <(jq -r --arg name "$artifact_name" --arg sha "$CANDIDATE_SHA" '
             .[]
-            | select(.name == $name and .expired == false and .workflow_run.head_sha == $sha)
-            | [.id, .workflow_run.id, .archive_download_url, .digest]
+            | select(
+                .name == $name
+                  and .expired == false
+                  and .workflow_run.head_sha == $sha
+                  and .workflow_run.repository_id == 1322108356
+                  and .workflow_run.head_repository_id == 1322108356
+              )
+            | [.id, .workflow_run.id]
             | @tsv
           ' <<< "$artifacts")
           [ "$(jq length <<< "$eligible")" -eq 1 ]
-          artifact_id="$(jq -r '.[0].artifactID' <<< "$eligible")"
-          artifact_run_id="$(jq -r '.[0].workflowRunID' <<< "$eligible")"
-          artifact_url="$(jq -r '.[0].archiveDownloadURL' <<< "$eligible")"
-          artifact_digest="$(jq -r '.[0].digest' <<< "$eligible")"
+          artifact_url="$(jq -r '.[0].artifact.archive_download_url' <<< "$eligible")"
+          artifact_digest="$(jq -r '.[0].artifact.digest' <<< "$eligible")"
           [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           mkdir -p "$CORPUS_ROOT"
           curl --fail --location --retry 3 --connect-timeout 10 \
             -H "Authorization: Bearer $GH_TOKEN" "$artifact_url" \
             -o "$CORPUS_ROOT/corpus.zip"
-          [ "$(shasum -a 256 "$CORPUS_ROOT/corpus.zip" | awk '{print "sha256:" $1}')" = "$artifact_digest" ]
+          archive_digest="$(shasum -a 256 "$CORPUS_ROOT/corpus.zip" | awk '{print "sha256:" $1}')"
+          [ "$archive_digest" = "$artifact_digest" ]
           unzip -q "$CORPUS_ROOT/corpus.zip" -d "$CORPUS_ROOT/input"
-          jq -n \
+          jq \
             --arg candidateSHA "$CANDIDATE_SHA" \
-            --argjson artifactID "$artifact_id" \
-            --arg digest "$artifact_digest" \
-            --argjson workflowRunID "$artifact_run_id" \
-            '{candidateSHA:$candidateSHA,artifactID:$artifactID,digest:$digest,workflowRunID:$workflowRunID}' \
+            --arg downloadedArchiveSHA256 "$archive_digest" \
+            '.[0] + {candidateSHA:$candidateSHA,downloadedArchiveSHA256:$downloadedArchiveSHA256}' \
+            <<< "$eligible" \
             > "$CORPUS_ROOT/provenance.json"
       - uses: actions/setup-java@v5
         with:

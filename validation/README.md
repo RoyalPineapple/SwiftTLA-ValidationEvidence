@@ -6,7 +6,7 @@ immutable checkout SHA for every subsequent operation. The workflow downloads
 the single unexpired canonical corpus artifact from that revision's successful
 `canonical-corpus-export` job. Admission requires a successful `main` push.
 The workflow verifies the archive digest and retains its artifact ID, workflow
-run ID, and digest. It also retains per-fixture input,
+run identity, export-job identity, timestamps, size, and digest. It also retains per-fixture input,
 TLC, and canonical comparison evidence as a GitHub Actions artifact. Upstream
 corpus models are authored only in SwiftTLA; this repository stages their
 verified bundles unchanged. The small harness contains focused regression
