@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
-runner="$root/validation/run-pluscal-oracle.sh"
+source_root="$(cd "$(dirname "$0")/.." && pwd)"
 temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
+git clone --quiet "$source_root" "$temporary/validation"
+root="$temporary/validation"
+git -C "$root" update-ref refs/remotes/origin/main HEAD
+runner="$root/validation/run-pluscal-oracle.sh"
 
 commit="$(git -C "$root" rev-parse HEAD)"
 corpus="$temporary/corpus"
 output="$temporary/evidence"
 child="$temporary/child-runner.sh"
 log="$temporary/children.tsv"
+mkdir "$temporary/bin"
+ln -s "$root/validation/test-fixtures/pluscal-oracle-swift-list.sh" "$temporary/bin/swift"
 mkdir -p "$corpus"
 printf '{"schema":"CanonicalCorpusExport","swiftTLASHA":"%s","cases":[]}' "$commit" > "$corpus/manifest.json"
 
@@ -36,9 +41,9 @@ printf '{"conformant":true}' > "$output/comparison.json"
 CHILD
 chmod +x "$child"
 
-PLUSCAL_ORACLE_CHILD_LOG="$log" PLUSCAL_ORACLE_CHILD_RUNNER="$child" \
+PATH="$temporary/bin:$PATH" PLUSCAL_ORACLE_CHILD_LOG="$log" PLUSCAL_ORACLE_CHILD_RUNNER="$child" \
   "$runner" --case all --checkout "$root" --commit "$commit" --requested-ref "$commit" \
-  --mode admission --validation-commit "$(printf 'a%.0s' {1..40})" \
+  --mode admission --validation-commit "$commit" \
   --canonical-corpus "$corpus" --output "$output"
 
 expected="$(jq -r '.requiredCases[].fixtureID' "$root/validation/pluscal-oracle.json" | sort)"
