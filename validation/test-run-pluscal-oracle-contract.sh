@@ -41,7 +41,7 @@ while [ "$#" -gt 0 ]; do
     *) exit 2 ;;
   esac
 done
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$case_id" "$checkout" "$commit" "$requested_ref" "$mode" "$validation_commit" "$canonical_corpus" >> "$PLUSCAL_ORACLE_CHILD_LOG"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$case_id" "$checkout" "$commit" "$requested_ref" "$mode" "$validation_commit" "$canonical_corpus" "$output" >> "$PLUSCAL_ORACLE_CHILD_LOG"
 mkdir -p "$output"
 printf '{"conformant":true}' > "$output/comparison.json"
 CHILD
@@ -54,6 +54,7 @@ PATH="$temporary/bin:$PATH" PLUSCAL_ORACLE_CHILD_LOG="$log" PLUSCAL_ORACLE_CHILD
 
 expected="$(jq -r '.requiredCases[].fixtureID' "$root/validation/pluscal-oracle.json" | sort)"
 actual="$(cut -f1 "$log" | sort)"
+[ "$candidate_commit" != "$validation_commit" ]
 [ "$actual" = "$expected" ]
-[ "$(awk -F '\t' -v checkout="$candidate" -v candidateCommit="$candidate_commit" -v validationCommit="$validation_commit" -v corpus="$corpus" '$2 != checkout || $3 != candidateCommit || $4 != candidateCommit || $5 != "candidate" || $6 != validationCommit || $7 != corpus { print; exit 1 }' "$log")" = "" ]
-jq -e '.schema == "SwiftTLAPlusCalDifferentialAudit" and .version == 1 and .mode == "admission" and .conformant == true' "$output/pluscal-differential-audit/result.json" >/dev/null
+[ "$(awk -F '\t' -v checkout="$candidate" -v candidateCommit="$candidate_commit" -v validationCommit="$validation_commit" -v corpus="$corpus" -v output="$output" '$2 != checkout || $3 != candidateCommit || $4 != candidateCommit || $5 != "candidate" || $6 != validationCommit || $7 != corpus || $8 != output "/" $1 { print; exit 1 }' "$log")" = "" ]
+jq -e --arg candidate "$candidate_commit" --arg validation "$validation_commit" '.schema == "SwiftTLAPlusCalDifferentialAudit" and .version == 1 and .mode == "admission" and .resolvedCommit == $candidate and .validationCommit == $validation and .conformant == true' "$output/pluscal-differential-audit/result.json" >/dev/null
