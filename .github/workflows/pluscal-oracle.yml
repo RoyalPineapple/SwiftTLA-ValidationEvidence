@@ -48,19 +48,59 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Download source-owned canonical corpus
         env:
+          ADMISSION_MODE: ${{ inputs.admission_mode }}
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.commit }}
           CORPUS_ROOT: ${{ runner.temp }}/canonical-corpus
         run: |
           set -euo pipefail
           artifact_name="canonical-corpus-$CANDIDATE_SHA"
-          artifact_url="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/artifacts?name=$artifact_name&per_page=100" | jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | sort_by(.created_at) | last | .archive_download_url // empty')"
-          [ -n "$artifact_url" ]
+          artifacts="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/artifacts?name=$artifact_name&per_page=100" | jq -s '[.[].artifacts[]]')"
+          eligible='[]'
+          while IFS=$'\t' read -r artifact_id run_id artifact_url artifact_digest; do
+            [ -n "$artifact_id" ] || continue
+            run="$(gh api "/repos/RoyalPineapple/SwiftTLA/actions/runs/$run_id")"
+            jq -e --arg sha "$CANDIDATE_SHA" --arg mode "$ADMISSION_MODE" '
+              .status == "completed"
+                and .conclusion == "success"
+                and .head_sha == $sha
+                and .path == ".github/workflows/ci.yml"
+                and ($mode != "admission" or (.event == "push" and .head_branch == "main"))
+            ' <<< "$run" >/dev/null || continue
+            jobs="$(gh api --paginate "/repos/RoyalPineapple/SwiftTLA/actions/runs/$run_id/jobs?per_page=100" | jq -s '[.[].jobs[]]')"
+            jq -e '[.[] | select(.name == "canonical-corpus-export" and .status == "completed" and .conclusion == "success")] | length == 1' <<< "$jobs" >/dev/null || continue
+            eligible="$(jq -c \
+              --argjson artifactID "$artifact_id" \
+              --argjson runID "$run_id" \
+              --arg url "$artifact_url" \
+              --arg digest "$artifact_digest" \
+              '. + [{artifactID:$artifactID, workflowRunID:$runID, archiveDownloadURL:$url, digest:$digest}]' \
+              <<< "$eligible")"
+          done < <(jq -r --arg name "$artifact_name" --arg sha "$CANDIDATE_SHA" '
+            .[]
+            | select(.name == $name and .expired == false and .workflow_run.head_sha == $sha)
+            | [.id, .workflow_run.id, .archive_download_url, .digest]
+            | @tsv
+          ' <<< "$artifacts")
+          [ "$(jq length <<< "$eligible")" -eq 1 ]
+          artifact_id="$(jq -r '.[0].artifactID' <<< "$eligible")"
+          artifact_run_id="$(jq -r '.[0].workflowRunID' <<< "$eligible")"
+          artifact_url="$(jq -r '.[0].archiveDownloadURL' <<< "$eligible")"
+          artifact_digest="$(jq -r '.[0].digest' <<< "$eligible")"
+          [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           mkdir -p "$CORPUS_ROOT"
           curl --fail --location --retry 3 --connect-timeout 10 \
             -H "Authorization: Bearer $GH_TOKEN" "$artifact_url" \
             -o "$CORPUS_ROOT/corpus.zip"
+          [ "$(shasum -a 256 "$CORPUS_ROOT/corpus.zip" | awk '{print "sha256:" $1}')" = "$artifact_digest" ]
           unzip -q "$CORPUS_ROOT/corpus.zip" -d "$CORPUS_ROOT/input"
+          jq -n \
+            --arg candidateSHA "$CANDIDATE_SHA" \
+            --argjson artifactID "$artifact_id" \
+            --arg digest "$artifact_digest" \
+            --argjson workflowRunID "$artifact_run_id" \
+            '{candidateSHA:$candidateSHA,artifactID:$artifactID,digest:$digest,workflowRunID:$workflowRunID}' \
+            > "$CORPUS_ROOT/provenance.json"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -77,6 +117,13 @@ jobs:
             --validation-commit "${{ github.sha }}" \
             --canonical-corpus "${{ runner.temp }}/canonical-corpus/input" \
             --output "$EVIDENCE_ROOT"
+      - name: Retain canonical corpus provenance
+        if: always()
+        env:
+          EVIDENCE_ROOT: ${{ runner.temp }}/pluscal-oracle/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -p "$EVIDENCE_ROOT"
+          cp "${{ runner.temp }}/canonical-corpus/provenance.json" "$EVIDENCE_ROOT/canonical-corpus-provenance.json"
       - name: Upload retained candidate evidence
         if: always()
         uses: actions/upload-artifact@v7

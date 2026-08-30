@@ -3,6 +3,7 @@ set -euo pipefail
 
 runner="$(cd "$(dirname "$0")" && pwd)/run-pluscal-oracle.sh"
 root="$(cd "$(dirname "$0")/.." && pwd)"
+workflow="$root/.github/workflows/pluscal-oracle.yml"
 jq -e '.schema == "SwiftTLAExternalValidation" and .version == 3' "$root/validation/pluscal-oracle.json" >/dev/null
 grep -Fq 'if [ "$mode" = admission ] && [ "$case_id" != all ]; then' "$runner"
 grep -Fq ' --mode candidate --validation-commit ' "$runner"
@@ -22,6 +23,12 @@ grep -Fq 'cp "$canonical_corpus/$swift_config_path" "$input/swift.cfg"' "$runner
 grep -Fq 'cp "$canonical_corpus/$pluscal_config_path" "$input/pluscal.cfg"' "$runner"
 ! grep -Fq 'stage_voteproof_tlaps_modules' "$runner"
 ! grep -Fq 'external-module-provenance.json' "$runner"
+grep -Fq '.workflow_run.head_sha == $sha' "$workflow"
+grep -Fq '.path == ".github/workflows/ci.yml"' "$workflow"
+grep -Fq '.event == "push" and .head_branch == "main"' "$workflow"
+grep -Fq '.name == "canonical-corpus-export"' "$workflow"
+grep -Fq '[ "$(jq length <<< "$eligible")" -eq 1 ]' "$workflow"
+grep -Fq 'canonical-corpus-provenance.json' "$workflow"
 
 fixtures="$root/validation/pluscal-oracle-harness/Sources/SwiftTLAValidationFixtures"
 registry="$fixtures/FixtureRegistry.swift"
