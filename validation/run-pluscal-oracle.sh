@@ -190,7 +190,10 @@ jar="$root/.build/tla2tools.jar"; mkdir -p "$root/.build"
 if [ ! -f "$jar" ]; then curl -fsSL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o "$jar"; fi
 jar_digest="$(shasum -a 256 "$jar" | awk '{print $1}')"
 [ "$jar_digest" = "eabd140a70f49eb9305a3bd3f3df944eddf87e5a90d329789085f8953a80533a" ] || fail "Pinned TLC jar digest differs" "$jar" "TLC v1.8.0 pinned digest" "untrusted jar" "No translator or TLC run" "Restore the pinned TLC artifact."
-jq -n --arg jarSHA256 "$jar_digest" --arg javaVersion "$(java -version 2>&1 | head -1)" '{tla2tools:{version:"1.8.0",artifact:"tla2tools.jar",sha256:$jarSHA256},javaVersion:$javaVersion,translator:"pcal.trans",modelChecker:"tlc2.TLC"}' > "$output/toolchain.json"
+java_version="$(java -version 2>&1)"
+grep -F 'openjdk version "17.0.19"' <<< "$java_version" >/dev/null || fail "JVM version differs" "java -version" "Eclipse Temurin 17.0.19+10" "$java_version" "No translator or TLC run" "Restore the pinned JVM."
+grep -F 'Temurin-17.0.19+10' <<< "$java_version" >/dev/null || fail "JVM build differs" "java -version" "Eclipse Temurin 17.0.19+10" "$java_version" "No translator or TLC run" "Restore the pinned JVM."
+jq -n --arg jarSHA256 "$jar_digest" --arg javaVersion "$java_version" '{tla2tools:{version:"1.8.0",artifact:"tla2tools.jar",sha256:$jarSHA256},javaVersion:$javaVersion,translator:"pcal.trans",modelChecker:"tlc2.TLC"}' > "$output/toolchain.json"
 module_name() { awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"; }
 prepare_module() { local source="$1" destination="$2" name; name="$(module_name "$source")"; [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."; cp "$source" "$destination/$name.tla"; printf '%s\n' "$name"; }
 copy_imports() { local source="$1/imports" destination="$2"; [ -d "$source" ] || return 0; find "$source" -maxdepth 1 -type f -name '*.tla' -exec cp {} "$destination" \;; }
