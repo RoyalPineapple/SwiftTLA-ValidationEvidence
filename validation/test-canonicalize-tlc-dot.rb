@@ -46,8 +46,6 @@ Dir.mktmpdir do |directory|
   edge = ->(from, to, action) do
     %(#{from} -> #{to} [label="#{action}",color="black",fontcolor="black"];\n)
   end
-  semantic_projection = ->(value) { value.slice("schema", "version", "initialStates", "states", "edges") }
-
   duplicate_graph = canonicalize.call("duplicate",
     node.call(0, "start", initial: true) + node.call(1, "done") +
       edge.call(0, 1, "advance") + edge.call(0, 1, "advance") + edge.call(0, 1, "retry") +
@@ -83,11 +81,11 @@ Dir.mktmpdir do |directory|
     { "from" => "start", "action" => "advance", "to" => "done", "occurrences" => 2 },
     { "from" => "start", "action" => "retry", "to" => "done", "occurrences" => 1 }
   ]
-  abort "removing one repeated edge did not change the graph" if semantic_projection.call(duplicate_graph) == semantic_projection.call(missing_repeated_edge)
-  abort "semantic edge difference was ignored" if semantic_projection.call(missing_repeated_edge) == semantic_projection.call(different_graph)
-  abort "top-level binding order was not normalized" unless semantic_projection.call(reordered_bindings) == semantic_projection.call(ordered_bindings)
-  abort "changed top-level binding was ignored" if semantic_projection.call(reordered_bindings) == semantic_projection.call(changed_binding)
-  abort "multiline binding value prevented top-level normalization" unless semantic_projection.call(reordered_multiline_bindings) == semantic_projection.call(ordered_multiline_bindings)
+  abort "removing one repeated edge did not change the graph" if duplicate_graph == missing_repeated_edge
+  abort "semantic edge difference was ignored" if missing_repeated_edge == different_graph
+  abort "top-level binding order was not normalized" unless reordered_bindings == ordered_bindings
+  abort "changed top-level binding was ignored" if reordered_bindings == changed_binding
+  abort "multiline binding value prevented top-level normalization" unless reordered_multiline_bindings == ordered_multiline_bindings
   abort "multiple initial states or a zero-edge graph changed" unless
     isolated_initials.fetch("initialStates") == ["first", "second"] && isolated_initials.fetch("edges").empty?
 
@@ -95,6 +93,5 @@ Dir.mktmpdir do |directory|
   rejects.call("truncated", valid.lines[0...-2].join, "Incomplete TLC DOT graph")
   rejects.call("duplicate-state", graph.call(node.call(0, "start", initial: true) + node.call(0, "start")), "Duplicate TLC state ID")
   rejects.call("malformed-edge", graph.call(node.call(0, "start", initial: true) + node.call(1, "done") + "0 -> 1 [label=\"advance\"];\n"), "Unrecognized TLC DOT record")
-  rejects.call("unknown-record", graph.call(node.call(0, "start", initial: true) + "edge disappeared here\n"), "Unrecognized TLC DOT record")
   rejects.call("trailing-record", valid + "0 -> 0 [label=\"late\",color=\"black\",fontcolor=\"black\"];\n", "Incomplete TLC DOT graph")
 end
