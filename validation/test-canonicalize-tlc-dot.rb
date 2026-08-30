@@ -74,6 +74,9 @@ Dir.mktmpdir do |directory|
     node.call(0, "/\\\\ tx = {}\\n/\\\\ snapshotStore = [k1 |-> NoVal\\n  k2 |-> NoVal]", initial: true) +
       node.call(1, "/\\\\ tx = {}\\n/\\\\ snapshotStore = [k1 |-> t1\\n  k2 |-> NoVal]") +
       edge.call(0, 1, "advance"))
+  isolated_initials = canonicalize.call("isolated-initials",
+    node.call(0, "first", initial: true) + node.call(1, "second", initial: true) +
+      "{rank = same; 0;1;}\n")
 
   abort "schema identity is not explicit" unless duplicate_graph.slice("schema", "version") == { "schema" => "TLCActionLabelDOTGraph", "version" => 1 }
   abort "labeled edge multiplicity was not retained" unless duplicate_graph.fetch("edges") == [
@@ -85,6 +88,8 @@ Dir.mktmpdir do |directory|
   abort "top-level binding order was not normalized" unless semantic_projection.call(reordered_bindings) == semantic_projection.call(ordered_bindings)
   abort "changed top-level binding was ignored" if semantic_projection.call(reordered_bindings) == semantic_projection.call(changed_binding)
   abort "multiline binding value prevented top-level normalization" unless semantic_projection.call(reordered_multiline_bindings) == semantic_projection.call(ordered_multiline_bindings)
+  abort "multiple initial states or a zero-edge graph changed" unless
+    isolated_initials.fetch("initialStates") == ["first", "second"] && isolated_initials.fetch("edges").empty?
 
   valid = graph.call(node.call(0, "start", initial: true) + node.call(1, "done") + edge.call(0, 1, "advance"))
   rejects.call("truncated", valid.lines[0...-2].join, "Incomplete TLC DOT graph")

@@ -4,8 +4,6 @@ require "json"
 input, output = ARGV
 abort "Usage: #{$PROGRAM_NAME} <graph.dot> <canonical-graph.json>" unless input && output && ARGV.length == 2
 
-source = File.read(input)
-lines = source.lines(chomp: true)
 header = [
   "strict digraph DiskGraph {",
   "node [shape=box,style=rounded]",
@@ -13,9 +11,6 @@ header = [
   "subgraph cluster_graph {",
   "color=\"white\";"
 ]
-abort "Invalid TLC DOT graph header" unless lines.shift(header.length) == header
-abort "Incomplete TLC DOT graph" unless lines.pop(2) == ["}", "}"]
-
 states = {}
 initial_ids = []
 edges = []
@@ -32,27 +27,46 @@ def canonical_state_label(label)
   bindings.sort_by(&:first).map(&:last).join("\\n")
 end
 
-lines.each_with_index do |line, index|
-  line_number = index + header.length + 1
-  case line
-  when /\A(-?\d+) \[label="((?:\\.|[^"])*)",style = filled\];?\z/
-    id, label = Regexp.last_match.captures
-    abort "Duplicate TLC state ID #{id} at line #{line_number}" if states.key?(id)
-    states[id] = canonical_state_label(label)
-    initial_ids << id
-  when /\A(-?\d+) \[label="((?:\\.|[^"])*)",tooltip="((?:\\.|[^"])*)"\];\z/
-    id, label, tooltip = Regexp.last_match.captures
-    abort "TLC state tooltip differs at line #{line_number}" unless tooltip == label
-    abort "Duplicate TLC state ID #{id} at line #{line_number}" if states.key?(id)
-    states[id] = canonical_state_label(label)
-  when /\A(-?\d+) -> (-?\d+) \[label="((?:\\.|[^"])*)",color="black",fontcolor="black"\];\z/
-    edges << Regexp.last_match.captures
-  when /\A\{rank = same; ((?:-?\d+;)*)\}\z/
-    rank_ids.concat(Regexp.last_match(1).scan(/-?\d+/))
-  else
-    abort "Unrecognized TLC DOT record at line #{line_number}: #{line}"
+phase = :header
+header_index = 0
+File.foreach(input).with_index(1) do |raw_line, line_number|
+  line = raw_line.chomp("\n")
+  case phase
+  when :header
+    abort "Invalid TLC DOT graph header" unless line == header[header_index]
+    header_index += 1
+    phase = :records if header_index == header.length
+  when :records
+    if line == "}"
+      phase = :outer_close
+      next
+    end
+    case line
+    when /\A(-?\d+) \[label="((?:\\.|[^"])*)",style = filled\];?\z/
+      id, label = Regexp.last_match.captures
+      abort "Duplicate TLC state ID #{id} at line #{line_number}" if states.key?(id)
+      states[id] = canonical_state_label(label)
+      initial_ids << id
+    when /\A(-?\d+) \[label="((?:\\.|[^"])*)",tooltip="((?:\\.|[^"])*)"\];\z/
+      id, label, tooltip = Regexp.last_match.captures
+      abort "TLC state tooltip differs at line #{line_number}" unless tooltip == label
+      abort "Duplicate TLC state ID #{id} at line #{line_number}" if states.key?(id)
+      states[id] = canonical_state_label(label)
+    when /\A(-?\d+) -> (-?\d+) \[label="((?:\\.|[^"])*)",color="black",fontcolor="black"\];\z/
+      edges << Regexp.last_match.captures
+    when /\A\{rank = same; ((?:-?\d+;)*)\}\z/
+      rank_ids.concat(Regexp.last_match(1).scan(/-?\d+/))
+    else
+      abort "Unrecognized TLC DOT record at line #{line_number}: #{line}"
+    end
+  when :outer_close
+    abort "Incomplete TLC DOT graph" unless line == "}"
+    phase = :done
+  when :done
+    abort "Incomplete TLC DOT graph"
   end
 end
+abort(phase == :header ? "Invalid TLC DOT graph header" : "Incomplete TLC DOT graph") unless phase == :done
 
 abort "No TLC states were found in #{input}" if states.empty?
 abort "No TLC initial state was found in #{input}" if initial_ids.empty?
