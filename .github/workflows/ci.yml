@@ -16,3 +16,4 @@ jobs:
       - run: bash validation/test-select-canonical-corpus.sh
       - run: bash validation/test-validation-checkout.sh
       - run: bash validation/test-run-pluscal-oracle-contract.sh
+      - run: bash validation/test-tlc-toolchain-pin.sh
