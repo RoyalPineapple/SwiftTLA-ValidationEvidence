@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+source "$root/validation/tlc-toolchain.sh"
 case_id= checkout= commit= requested_ref= mode=candidate validation_commit= output= canonical_corpus= case_source=
 fixture_export_timeout_seconds=180
 fixture_registry_timeout_seconds=600
@@ -187,13 +188,28 @@ jq -e --arg fixture "$case_id" --arg commit "$commit" --arg source "$case_source
 jq -n --arg id "$case_id" --arg ref "$requested_ref" --arg commit "$commit" --arg validationCommit "$validation_commit" --arg source "$case_source" --arg module "$(shasum -a 256 "$output/input/swift-lowered.tla" | awk '{print $1}')" --arg swiftConfig "$(shasum -a 256 "$output/input/swift.cfg" | awk '{print $1}')" --arg plusCalConfig "$(shasum -a 256 "$output/input/pluscal.cfg" | awk '{print $1}')" --arg pluscal "$(shasum -a 256 "$output/input/pluscal-source.tla" | awk '{print $1}')" '{id:$id,requestedRef:$ref,resolvedCommit:$commit,validationCommit:$validationCommit,moduleSHA256:$module,configurationSHA256:{swift:$swiftConfig,pluscal:$plusCalConfig},plusCalSourceSHA256:$pluscal,source:$source}' > "$output/case.json"
 mkdir "$output/translated" "$output/swift-tlc" "$output/pluscal-tlc"
 jar="$root/.build/tla2tools.jar"; mkdir -p "$root/.build"
-if [ ! -f "$jar" ]; then curl -fsSL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o "$jar"; fi
+jar_digest=""
+[ ! -f "$jar" ] || jar_digest="$(shasum -a 256 "$jar" | awk '{print $1}')"
+if [ "$jar_digest" != "$TLC_JAR_SHA256" ]; then
+  temporary="$jar.partial"
+  rm -f "$temporary"
+  if curl --fail --location --proto '=https' --tlsv1.2 --silent --show-error --retry 3 --connect-timeout 10 \
+    --header 'Accept: application/octet-stream' \
+    --output "$temporary" \
+    "$TLC_RELEASE_ASSET_URL"; then
+    jar_digest="$(shasum -a 256 "$temporary" | awk '{print $1}')"
+  else
+    fail "Pinned TLC jar download failed" "$TLC_RELEASE_ASSET_URL" "$TLC_VERSION release asset" "download failed" "No translator or TLC run" "Restore the pinned TLC artifact."
+  fi
+  [ "$jar_digest" = "$TLC_JAR_SHA256" ] || fail "Pinned TLC jar digest differs" "$TLC_RELEASE_ASSET_URL" "$TLC_JAR_SHA256" "$jar_digest" "No translator or TLC run" "Restore the pinned TLC artifact."
+  mv "$temporary" "$jar"
+fi
 jar_digest="$(shasum -a 256 "$jar" | awk '{print $1}')"
-[ "$jar_digest" = "eabd140a70f49eb9305a3bd3f3df944eddf87e5a90d329789085f8953a80533a" ] || fail "Pinned TLC jar digest differs" "$jar" "TLC v1.8.0 pinned digest" "untrusted jar" "No translator or TLC run" "Restore the pinned TLC artifact."
+[ "$jar_digest" = "$TLC_JAR_SHA256" ] || fail "Pinned TLC jar digest differs" "$jar" "$TLC_JAR_SHA256" "$jar_digest" "No translator or TLC run" "Restore the pinned TLC artifact."
 java_version="$(java -version 2>&1)"
 grep -F 'openjdk version "17.0.19"' <<< "$java_version" >/dev/null || fail "JVM version differs" "java -version" "Eclipse Temurin 17.0.19+10" "$java_version" "No translator or TLC run" "Restore the pinned JVM."
 grep -F 'Temurin-17.0.19+10' <<< "$java_version" >/dev/null || fail "JVM build differs" "java -version" "Eclipse Temurin 17.0.19+10" "$java_version" "No translator or TLC run" "Restore the pinned JVM."
-jq -n --arg jarSHA256 "$jar_digest" --arg javaVersion "$java_version" '{tla2tools:{version:"1.8.0",artifact:"tla2tools.jar",sha256:$jarSHA256},javaVersion:$javaVersion,translator:"pcal.trans",modelChecker:"tlc2.TLC"}' > "$output/toolchain.json"
+jq -n --arg version "$TLC_VERSION" --arg jarSHA256 "$jar_digest" --arg javaVersion "$java_version" '{tla2tools:{version:$version,artifact:"tla2tools.jar",sha256:$jarSHA256},javaVersion:$javaVersion,translator:"pcal.trans",modelChecker:"tlc2.TLC"}' > "$output/toolchain.json"
 module_name() { awk '/^---- MODULE [[:alnum:]_]+ ----$/ { print $3; exit }' "$1"; }
 prepare_module() { local source="$1" destination="$2" name; name="$(module_name "$source")"; [ -n "$name" ] || fail "Missing TLA+ module name" "$source" "top-level MODULE declaration" "no valid module header" "Inputs retained" "Render a named module."; cp "$source" "$destination/$name.tla"; printf '%s\n' "$name"; }
 copy_imports() { local source="$1/imports" destination="$2"; [ -d "$source" ] || return 0; find "$source" -maxdepth 1 -type f -name '*.tla' -exec cp {} "$destination" \;; }
